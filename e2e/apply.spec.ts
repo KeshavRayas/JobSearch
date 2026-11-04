@@ -27,6 +27,38 @@ test("detail overlay opens with correct gates", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("apply queues the job without leaving Discover", async ({ page }) => {
+  await page.route("**/api/jobs/*/decision", (route) =>
+    route.fulfill({ status: 201, json: { status: "QUEUED" } }),
+  );
+  await page.goto("/");
+  const apply = page
+    .getByRole("button", { name: "Apply", exact: true })
+    .first();
+  await apply.click();
+  await expect(page.getByText("In your apply queue").first()).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe("/");
+});
+
+test("queue page lists a queued job and links to its workspace", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/");
+  const id = await firstSelectedId(page);
+  await trackDecision(id);
+  const res = await request.post(`/api/jobs/${id}/decision`, {
+    data: { status: "QUEUED" },
+  });
+  expect(res.ok()).toBeTruthy();
+
+  await page.goto("/apply");
+  await expect(
+    page.getByRole("heading", { name: "Your apply queue." }),
+  ).toBeVisible();
+  await expect(page.locator(`a[href="/apply/${id}"]`)).toBeVisible();
+});
+
 test("save records a decision visible on the tracker", async ({ page }) => {
   await page.goto("/");
   const id = await firstSelectedId(page);

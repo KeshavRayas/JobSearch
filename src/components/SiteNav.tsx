@@ -1,10 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-export type NavPage = "discover" | "tracker" | "resumes" | "ops" | "settings";
+export type NavPage =
+  "discover" | "apply" | "tracker" | "resumes" | "ops" | "settings";
 
 const LINKS: { page: NavPage; href: string; label: string }[] = [
   { page: "discover", href: "/", label: "Discover" },
+  { page: "apply", href: "/apply", label: "Queue" },
   { page: "tracker", href: "/tracker", label: "Tracker" },
   { page: "resumes", href: "/resumes", label: "Resumes" },
   { page: "ops", href: "/ops", label: "Ops" },

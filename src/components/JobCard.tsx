@@ -51,7 +51,6 @@ export function JobCard({
       // The detail panel still opens; the user can queue from there.
     } finally {
       setBusy(false);
-      window.location.assign(`/apply/${job.id}`);
     }
   }
 
@@ -119,7 +118,7 @@ export function JobCard({
             href={`/apply/${job.id}`}
             className="px-4 py-1.5 rounded-full border border-black/15 text-[12px] font-medium hover:border-black/40 transition-colors"
           >
-            Continue
+            Open workspace
           </Link>
         ) : (
           <button
