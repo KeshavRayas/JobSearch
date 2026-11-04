@@ -24,6 +24,7 @@ export const envSchema = z.object({
   // Local OpenCode CLI overrides
   OPENCODE_BIN: optionalString,
   OPENCODE_AGENT: optionalString,
+  OPENCODE_MODEL: optionalString,
 
   // Cron protection (unset locally = open, Vercel sends the bearer token)
   CRON_SECRET: optionalString,

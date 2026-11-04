@@ -26,8 +26,7 @@ export async function getSignalSkillCounts(): Promise<SkillCount[]> {
      WHERE j."status" = 'ACTIVE'
        AND j."classificationScore" IS NOT NULL
        AND j."classificationScore" >= 0.70
-       AND j."postedAt" IS NOT NULL
-       AND DATE_PART('day', NOW() - j."postedAt") <= 30
+       AND COALESCE(j."postedAt", j."scrapedAt") >= NOW() - INTERVAL '30 days'
        AND s.skill = ANY($1)
      GROUP BY s.skill`,
     [...SIGNAL_SKILLS],
@@ -52,8 +51,10 @@ export async function searchJobs(
   conditions.push(`j."status" = 'ACTIVE'`);
   conditions.push(`j."classificationScore" IS NOT NULL`);
   conditions.push(`j."classificationScore" >= 0.70`);
+  // Recency uses the effective date: many sources omit postedAt, and hiding
+  // every one of those rows made a populated database look empty.
   conditions.push(
-    `j."postedAt" IS NOT NULL AND DATE_PART('day', NOW() - j."postedAt") <= 30`,
+    `COALESCE(j."postedAt", j."scrapedAt") >= NOW() - INTERVAL '30 days'`,
   );
 
   if (filters.query) {
@@ -101,7 +102,9 @@ export async function searchJobs(
   }
 
   if (filters.daysOld) {
-    conditions.push(`DATE_PART('day', NOW() - j."postedAt") <= $${paramIdx}`);
+    conditions.push(
+      `DATE_PART('day', NOW() - COALESCE(j."postedAt", j."scrapedAt")) <= $${paramIdx}`,
+    );
     params.push(filters.daysOld);
     paramIdx++;
   }
@@ -143,6 +146,7 @@ export async function searchJobs(
       experience: string | null;
       source: string;
       postedAt: Date | null;
+      effectiveDate: Date;
       skills: string[];
       companyId: string;
       companyName: string;
@@ -154,13 +158,16 @@ export async function searchJobs(
     `SELECT j.id, j.title, j.description, j."applyUrl", j."workMode",
             j.location, j."salaryMin", j."salaryMax", j."salaryCurr",
             j."jobType", j."experience", j."source",
-            j."postedAt", j.skills,
+            j."postedAt", COALESCE(j."postedAt", j."scrapedAt") as "effectiveDate",
+            j.skills,
             c.id as "companyId", c.name as "companyName", c.slug as "companySlug",
             c.logo as "companyLogo", c."companyType"
      FROM "Job" j
      JOIN "Company" c ON c.id = j."companyId"
      ${where}
-     ORDER BY j."sourceScore" DESC, j."postedAt" DESC NULLS LAST, j."scrapedAt" DESC
+     ORDER BY j."sourceScore" DESC,
+              COALESCE(j."postedAt", j."scrapedAt") DESC,
+              j."scrapedAt" DESC
      LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
     ...params,
     pageSize,
@@ -180,8 +187,8 @@ export async function searchJobs(
     jobType: (r.jobType ?? undefined) as JobSearchResult["jobType"],
     experience: (r.experience ?? undefined) as JobSearchResult["experience"],
     source: r.source as JobSearchResult["source"],
-    postedAt: r.postedAt,
-    daysOld: daysAgo(r.postedAt),
+    postedAt: r.effectiveDate,
+    daysOld: daysAgo(r.effectiveDate),
     skills: r.skills ?? [],
     company: {
       id: r.companyId,

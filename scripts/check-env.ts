@@ -54,6 +54,7 @@ if (env.LLM_PROVIDER === "cloud") {
   console.log(
     "  requires the OpenCode CLI on this machine (or set OPENCODE_BIN)",
   );
+  console.log(`  model: ${env.OPENCODE_MODEL ?? "CLI default (unpinned)"}`);
 }
 
 const sources = [

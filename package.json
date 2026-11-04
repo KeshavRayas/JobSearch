@@ -12,6 +12,7 @@
     "format:check": "prettier --check .",
     "check": "bun run lint && bun run typecheck && bun run format:check",
     "check:env": "tsx scripts/check-env.ts",
+    "audit": "tsx scripts/audit.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:status": "prisma migrate status",
