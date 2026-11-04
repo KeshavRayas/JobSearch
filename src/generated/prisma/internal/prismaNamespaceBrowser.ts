@@ -63,8 +63,7 @@ export const ModelName = {
   ApplicationDecision: 'ApplicationDecision',
   JobAnalysis: 'JobAnalysis',
   TailoredResume: 'TailoredResume',
-  CoverLetter: 'CoverLetter',
-  InterviewPrep: 'InterviewPrep'
+  CoverLetter: 'CoverLetter'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -314,20 +313,6 @@ export const CoverLetterScalarFieldEnum = {
 } as const
 
 export type CoverLetterScalarFieldEnum = (typeof CoverLetterScalarFieldEnum)[keyof typeof CoverLetterScalarFieldEnum]
-
-
-export const InterviewPrepScalarFieldEnum = {
-  id: 'id',
-  jobId: 'jobId',
-  baseResumeId: 'baseResumeId',
-  content: 'content',
-  evidenceIds: 'evidenceIds',
-  rawJson: 'rawJson',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type InterviewPrepScalarFieldEnum = (typeof InterviewPrepScalarFieldEnum)[keyof typeof InterviewPrepScalarFieldEnum]
 
 
 export const SortOrder = {

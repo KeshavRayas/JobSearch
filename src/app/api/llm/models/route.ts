@@ -17,8 +17,10 @@ function modelsUrl(baseUrl: string): string {
 
 export async function POST(req: Request) {
   const { key, baseUrl } = readByokHeaders(req.headers);
-  if (!key) return Response.json({ error: "API key is required" }, { status: 400 });
-  if (!baseUrl) return Response.json({ error: "Base URL is required" }, { status: 400 });
+  if (!key)
+    return Response.json({ error: "API key is required" }, { status: 400 });
+  if (!baseUrl)
+    return Response.json({ error: "Base URL is required" }, { status: 400 });
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${key}`,

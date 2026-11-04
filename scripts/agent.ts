@@ -6,10 +6,6 @@ import { getTailoredResume, tailorResume } from "@/lib/tailor/service";
 import { getValidation, validateTailored } from "@/lib/tailor/validateSemantic";
 import { getPdfState, renderPdf } from "@/lib/pdf/service";
 import { generateCoverLetter, getCoverLetter } from "@/lib/cover/service";
-import {
-  generateInterviewPrep,
-  getInterviewPrep,
-} from "@/lib/interview/service";
 import { runIngestionPipeline } from "@/lib/ingestion/pipeline";
 import { runNightly } from "@/lib/matching/nightly";
 import { getDefaultProvider } from "@/lib/analysis/service";
@@ -25,7 +21,6 @@ import { getDefaultProvider } from "@/lib/analysis/service";
 //   bun run agent -- validate <jobId> [--refresh]
 //   bun run agent -- pdf <jobId> [--refresh]
 //   bun run agent -- cover <jobId> [--refresh]
-//   bun run agent -- interview <jobId> [--refresh]
 //   bun run agent -- decision <jobId> --status SAVED [--reason "..."]
 //   bun run agent -- ingest
 //   bun run agent -- nightly [--top 25]
@@ -104,7 +99,6 @@ async function status() {
       prisma.jobAnalysis.count(),
       prisma.tailoredResume.count(),
       prisma.coverLetter.count(),
-      prisma.interviewPrep.count(),
       prisma.applicationDecision.count(),
       prisma.nightlyRun.count(),
     ]),
@@ -114,15 +108,13 @@ async function status() {
       select: { id: true, title: true },
     }),
   ]);
-  const [jobs, analyses, tailored, covers, preps, decisions, nightlyRuns] =
-    counts;
+  const [jobs, analyses, tailored, covers, decisions, nightlyRuns] = counts;
   return {
     jobs: { total: jobs, visible: visible.total, sample: visible.data },
     artifacts: {
       analyses,
       tailored,
       covers,
-      preps,
       decisions,
       nightlyRuns,
     },
@@ -216,16 +208,6 @@ async function main() {
       return print(command, { cached: false, cover });
     }
 
-    case "interview": {
-      const jobId = idArg();
-      if (!refresh()) {
-        const existing = await getInterviewPrep(jobId);
-        if (existing) return print(command, { cached: true, prep: existing });
-      }
-      const { prep } = await generateInterviewPrep(jobId);
-      return print(command, { cached: false, prep });
-    }
-
     case "decision": {
       const jobId = idArg();
       const statusValue = flag("status");
@@ -301,7 +283,6 @@ async function main() {
           "validate <id>",
           "pdf <id>",
           "cover <id>",
-          "interview <id>",
           "decision <id> --status <status>",
           "ingest",
           "nightly",

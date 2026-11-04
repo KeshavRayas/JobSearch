@@ -86,9 +86,13 @@ export function validateTailoredResume(
           const source = findSkillsItem(base, sources[0]);
           const got = fieldSkills(item.fields);
           if (source && !sameSet(source, got)) {
+            const missing = source.filter((s) => !hasSkill(got, s));
+            const added = got.filter((s) => !hasSkill(source, s));
             issues.push({
               type: "TEXT_MISMATCH",
-              text: `${item.id} skills differ from ${sources[0]} (reorder must preserve the set)`,
+              text: `${item.id} skills differ from ${sources[0]} (missing: ${
+                missing.join(", ") || "none"
+              }; added: ${added.join(", ") || "none"})`,
             });
           }
         } else {
@@ -131,11 +135,25 @@ function findSkillsItem(base: ResumeData, id: string): string[] | null {
 function sameSet(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   const counts = new Map<string, number>();
-  for (const s of a) counts.set(s, (counts.get(s) ?? 0) + 1);
+  for (const s of a) {
+    const key = normalizeSkill(s);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
   for (const s of b) {
-    const n = counts.get(s) ?? 0;
+    const key = normalizeSkill(s);
+    const n = counts.get(key) ?? 0;
     if (n === 0) return false;
-    counts.set(s, n - 1);
+    counts.set(key, n - 1);
   }
   return true;
+}
+
+/** Case/whitespace-insensitive comparison; cleaning words is still a change. */
+function normalizeSkill(skill: string): string {
+  return skill.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function hasSkill(list: string[], skill: string): boolean {
+  const key = normalizeSkill(skill);
+  return list.some((s) => normalizeSkill(s) === key);
 }

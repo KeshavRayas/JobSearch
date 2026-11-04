@@ -1,7 +1,7 @@
 # Database schema
 
 Single-user database. No `User`, `Session`, or `Account` tables — there is no
-auth layer. Fourteen models, grouped by responsibility.
+auth layer. Thirteen models, grouped by responsibility.
 
 ## Enums
 
@@ -35,7 +35,7 @@ updates instead of duplicating. Key fields: `title`, `description`, `applyUrl`,
 `location`, `workMode`, `salaryMin/Max`, `jobType`, `experience`, `skills[]`,
 `postedAt`, `scrapedAt`, `status`, `classificationScore`, `rejectionReason`,
 `sourceScore`, and `searchVector` (full-text). Relations: one company, optional
-match/analysis/decision/cover letter/interview prep, many tailored resumes.
+match/analysis/decision/cover letter, many tailored resumes.
 
 ### SearchEvent
 
@@ -105,12 +105,6 @@ the evidence-bearing content and the two-stage validation state:
 
 Unique per job. `content` is the validated letter, `evidenceIds[]` must resolve
 against the base resume, `rawJson` for audit.
-
-### InterviewPrep
-
-Unique per job. `content` holds technical/resume/behavioral questions, STAR
-stories, questions to ask, and gap bridges; `evidenceIds[]` validated the same
-way.
 
 ## Observability
 

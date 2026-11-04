@@ -18,9 +18,9 @@ minimal text.
 
 # Job Search — agent guide
 
-A single-user, local-first job search OS. It ingests postings, ranks them,
-and runs five evidence-grounded LLM flows: analyze → tailor → validate → PDF →
-cover letter → interview prep. There is no auth layer; never expose it publicly.
+A single-user, local-first job application system. It ingests postings, ranks
+them, tailors a resume with evidence, renders an ATS-checked PDF, and gets you
+to the apply page. There is no auth layer; never expose it publicly.
 
 This file is the entry point for agents. Read it before changing code or data.
 
@@ -48,7 +48,7 @@ bun install
 bun run check:env       # doctor: env, provider, sources, digest
 bun run audit           # machine-readable install health (jobs visible? base resume?)
 bun run smoke:llm       # one provider call; proves model auth + JSON
-bun run smoke:flow      # analyze → tailor → validate → PDF → cover → interview
+bun run smoke:flow      # analyze → tailor → validate → PDF → cover
 bun run db:migrate      # apply Prisma migrations
 bun run dev             # http://localhost:3000
 bun run test            # unit only (no DB)
@@ -71,7 +71,6 @@ bun run agent -- tailor <jobId>
 bun run agent -- validate <jobId>
 bun run agent -- pdf <jobId>
 bun run agent -- cover <jobId>
-bun run agent -- interview <jobId>
 
 bun run agent -- decision <jobId> --status SAVED|APPLIED|QUEUED|OPENED|SKIPPED
 bun run agent -- ingest
@@ -105,7 +104,6 @@ All routes are unauthenticated and local-only.
 | GET/POST | `/api/jobs/:id/pdf`          | PDF state / render + ATS                                      |
 | GET      | `/api/jobs/:id/pdf/download` | download rendered PDF                                         |
 | GET/POST | `/api/jobs/:id/cover`        | cover letter                                                  |
-| GET/POST | `/api/jobs/:id/interview`    | interview prep                                                |
 | GET/POST | `/api/jobs/:id/decision`     | tracker state                                                 |
 | POST     | `/api/jobs/:id/liveness`     | apply-URL check                                               |
 | POST     | `/api/jobs/import`           | import one job by URL                                         |
@@ -135,7 +133,6 @@ bun run agent -- tailor <jobId>
 bun run agent -- validate <jobId>      # must be SEMANTIC_VALID before PDF
 bun run agent -- pdf <jobId>
 bun run agent -- cover <jobId>
-bun run agent -- interview <jobId>
 bun run agent -- decision <jobId> --status APPLIED
 ```
 
@@ -166,11 +163,11 @@ Job → Analyze → JobAnalysis
     → Tailor  → TailoredResume (STRUCTURAL_VALID, evidence IDs)
     → Validate→ SEMANTIC_VALID | SEMANTIC_INVALID
     → PDF     → storage/pdfs/... + ATS result (only SEMANTIC_VALID)
-    → Cover / Interview → persisted validated artifacts
+    → Cover   → persisted validated artifact
     → Decision → tracker
 ```
 
-Key files: `src/lib/{sources,ingestion,matching,analysis,tailor,cover,interview,pdf,repositories}/`,
+Key files: `src/lib/{sources,ingestion,matching,analysis,tailor,cover,pdf,repositories}/`,
 `prisma/schema.prisma`, `docs/architecture.md`, `docs/schema.md`.
 
 ## Environment

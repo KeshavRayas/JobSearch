@@ -1,9 +1,8 @@
 import { prisma } from "@/lib/prisma";
 
 // ─── Job panel state ─────────────────────────────────────────────────────────
-// One request for everything the detail panel needs. Replaces five separate
-// fetches (analyze, tailor, decision, cover, interview) and their Neon
-// round trips.
+// One request for everything the detail panel needs. Replaces separate
+// analyze, tailor, decision, and cover fetches and their Neon round trips.
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +17,6 @@ export async function GET(_req: Request, ctx: { params: Params }) {
       analysis: true,
       decision: true,
       coverLetter: true,
-      interviewPrep: true,
       tailoredResumes: {
         where: { isCurrent: true },
         orderBy: { version: "desc" },
@@ -39,7 +37,6 @@ export async function GET(_req: Request, ctx: { params: Params }) {
       versionCount: job._count.tailoredResumes,
       decision: job.decision,
       cover: job.coverLetter,
-      interview: job.interviewPrep,
     },
     { headers: { "Cache-Control": "no-store" } },
   );

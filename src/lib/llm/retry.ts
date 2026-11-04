@@ -2,7 +2,7 @@ import { generateJsonSanitized } from "@/lib/llm/sanitize";
 import type { LlmProvider } from "@/lib/llm/types";
 
 // ─── Single-retry Zod parse boundary ─────────────────────────────────────────
-// tailor, cover, and interview services shared an identical flow: safeParse the
+// tailor and cover services shared an identical flow: safeParse the
 // model output, log + retry once with a correction prompt, then throw a
 // service-specific validation error. One helper keeps the retry budget ("once")
 // and the prompt wording in a single place.

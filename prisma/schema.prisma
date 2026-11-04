@@ -111,7 +111,6 @@ model Job {
   tailoredResumes TailoredResume[]
   decision ApplicationDecision?
   coverLetter CoverLetter?
-  interviewPrep InterviewPrep?
 
   @@unique([externalId, source])
   @@index([source])
@@ -314,18 +313,6 @@ enum TailorValidationStatus {
 }
 
 model CoverLetter {
-  id String @id @default(cuid())
-  jobId String @unique
-  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  baseResumeId String
-  content Json
-  evidenceIds String[]
-  rawJson Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model InterviewPrep {
   id String @id @default(cuid())
   jobId String @unique
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)

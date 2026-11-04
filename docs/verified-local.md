@@ -11,6 +11,12 @@ commands; do not trust this file over current output.
 - Provider: OpenCode CLI, pinned `OPENCODE_MODEL=google/gemini-3.5-flash`.
 - Jobs: 45 visible (Greenhouse 20, Ashby 23, Lever 1, Remotive 1).
 
+## Scope
+
+This is an end-to-end **application** platform: discover/rank jobs, analyze and
+tailor the resume, render the PDF, write a cover letter, and open the company
+apply page. Interview prep was removed from the product on 2026-11-04.
+
 ## Gates
 
 | Gate        | Command                             | Result                     |
@@ -18,7 +24,7 @@ commands; do not trust this file over current output.
 | Lint        | `bun run lint`                      | pass                       |
 | Types       | `tsc --noEmit`                      | pass                       |
 | Format      | `prettier --check .`                | pass                       |
-| Unit        | `bun run test`                      | 228 passed / 18 files      |
+| Unit        | `bun run test`                      | 219 passed / 17 files      |
 | Integration | `bun run test:integration`          | 17 passed / 2 files        |
 | E2E         | `bun run test:e2e`                  | 16 passed                  |
 | Build       | `bun run build`                     | pass, all routes           |
@@ -37,7 +43,6 @@ validate  → SEMANTIC_VALID, issues: []
 pdf       → SUCCESS, storage/pdfs/o1gMoCevGRZR5d0EMyXUE_v1.pdf
             ATS: all sections found
 cover     → persisted, evidence ids resolve
-interview → persisted, gaps bridged from analysis.missingSkills
 download  → GET /api/jobs/:id/pdf/download → 200 application/pdf (32,590 bytes)
 ```
 
@@ -52,7 +57,8 @@ Verified through OpenCode Go's **Responses API**, not chat completions:
 - model `muse-spark-1.3-contributor`
 - required headers: bearer key + `x-opencode-session`
 - full flow: analyze → tailor → SEMANTIC_VALID → PDF
-  `storage/pdfs/o1gMoCevGRZR5d0EMyXUE_v2.pdf` → cover → interview, 255s
+  `storage/pdfs/o1gMoCevGRZR5d0EMyXUE_v2.pdf` → cover, 255s (interview prep
+  was part of this run but has since been removed from the product).
 - the Settings preset now stores `api: "responses"`; the BYOK test route
   returned 200 with `source: user` for this exact configuration.
 - model discovery: `POST /api/llm/models` returned **28 models** for OpenCode
@@ -61,7 +67,7 @@ Verified through OpenCode Go's **Responses API**, not chat completions:
 
 The previous verification job (`VOJ3381CG_ApHYoXMMFUX`) was removed by the
 nightly stale-job cleanup, which correctly cascaded its tailored resume, PDF
-row, cover letter, and interview prep. That is expected: stale jobs do not keep
+row, cover letter, and other artifacts. That is expected: stale jobs do not keep
 artifacts.
 
 Both failures found during this pass are fixed:
@@ -82,7 +88,6 @@ bun run agent -- tailor <jobId>
 bun run agent -- validate <jobId>
 bun run agent -- pdf <jobId>
 bun run agent -- cover <jobId>
-bun run agent -- interview <jobId>
 ```
 
 JSON shape `{ ok, command, data }`; exit codes 0/2/3/4/5.
