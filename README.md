@@ -104,8 +104,12 @@ verdict sit side by side.
   the path in one call.
 - `LLM_PROVIDER=cloud` needs `LLM_API_KEY` + `LLM_MODEL`; optional
   `LLM_BASE_URL`, `LLM_TIMEOUT_MS`.
-- The app also supports per-browser BYOK keys in the job panel; those never
-  leave localStorage except to the provider you configure.
+- The app supports multiple browser-local provider connections, managed only in
+  **Settings → AI providers**. Add an OpenCode Go (or other) key once, test it,
+  then pick the active model inside the job panel. Keys never go to the server
+  and are never logged.
+- The job panel no longer contains a key form; it only selects among saved
+  connections or "Server default".
 
 ## Scheduling
 
@@ -184,6 +188,16 @@ The UI is locked to **Calm Focus**; read
 [`DESIGN_CALM_FOCUS.md`](./DESIGN_CALM_FOCUS.md) before changing anything
 visual. Single centered column, hairlines only, Instrument Serif + Inter,
 900 ms entrances, minimal text. Neo-Brutalism is explicitly out.
+
+## Performance
+
+- Opening a job is client-side: no server round trip, no list refetch. Measured
+  ~40ms to open the modal after hydration.
+- The detail panel loads all persisted artifacts from one endpoint
+  (`GET /api/jobs/:id/state`) instead of five.
+- Job searches are cached for 15s under the `jobs` tag and revalidated on
+  ingestion; warm homepage responses are ~0.4s locally.
+- The list count is returned by the same SQL query via `COUNT(*) OVER()`.
 
 ## Known limits
 

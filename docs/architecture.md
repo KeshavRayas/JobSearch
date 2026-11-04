@@ -152,6 +152,16 @@ and bypass the shared provider for that browser.
 - Windows: `scripts/schedule-nightly.ps1` registers `bun run agent -- nightly`
   at 02:00.
 
+## Performance rules
+
+- Opening a job is client-side (`JobBrowser` + `history.pushState`). Do not
+  reintroduce a server navigation for `?selected=`.
+- The panel loads all artifacts from `/api/jobs/:id/state`; do not add per-card
+  fetches back.
+- `searchJobs` returns the count with `COUNT(*) OVER()` in one round trip.
+- Searches are cached under the `jobs` tag for 15s; ingestion calls
+  `revalidateTag("jobs", "max")`.
+
 ## Scale notes
 
 Optimized for one user: 10k–50k jobs, a few hundred matches per run, page

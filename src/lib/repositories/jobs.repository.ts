@@ -122,17 +122,9 @@ export async function searchJobs(
   const pageSize = filters.pageSize ?? 20;
   const offset = (page - 1) * pageSize;
 
-  const countResult = await prisma.$queryRawUnsafe<{ total: bigint }[]>(
-    `SELECT COUNT(*)::bigint as total
-     FROM "Job" j
-     JOIN "Company" c ON c.id = j."companyId"
-     ${where}`,
-    ...params,
-  );
-  const total = Number(countResult[0]?.total ?? 0);
-
   const rows = await prisma.$queryRawUnsafe<
     {
+      total: bigint;
       id: string;
       title: string;
       description: string;
@@ -155,7 +147,8 @@ export async function searchJobs(
       companyType: string;
     }[]
   >(
-    `SELECT j.id, j.title, j.description, j."applyUrl", j."workMode",
+    `SELECT COUNT(*) OVER()::bigint as total,
+            j.id, j.title, j.description, j."applyUrl", j."workMode",
             j.location, j."salaryMin", j."salaryMax", j."salaryCurr",
             j."jobType", j."experience", j."source",
             j."postedAt", COALESCE(j."postedAt", j."scrapedAt") as "effectiveDate",
@@ -173,6 +166,20 @@ export async function searchJobs(
     pageSize,
     offset,
   );
+
+  // COUNT(*) OVER() returns the unpaginated total in the same round trip.
+  // An empty page past the end has no row, so fall back to a count there.
+  let total = Number(rows[0]?.total ?? 0);
+  if (rows.length === 0) {
+    const count = await prisma.$queryRawUnsafe<{ total: bigint }[]>(
+      `SELECT COUNT(*)::bigint as total
+       FROM "Job" j
+       JOIN "Company" c ON c.id = j."companyId"
+       ${where}`,
+      ...params,
+    );
+    total = Number(count[0]?.total ?? 0);
+  }
 
   const data = rows.map((r) => ({
     id: r.id,

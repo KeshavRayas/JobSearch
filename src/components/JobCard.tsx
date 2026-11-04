@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { formatDaysAgo, formatSalary } from "@/lib/utils";
 import type { JobSearchResult } from "@/lib/types";
@@ -5,9 +7,11 @@ import type { JobSearchResult } from "@/lib/types";
 export function JobCard({
   job,
   index = 0,
+  onSelect,
 }: {
   job: JobSearchResult;
   index?: number;
+  onSelect?: (id: string) => void;
 }) {
   const meta = [
     job.location,
@@ -19,6 +23,12 @@ export function JobCard({
   return (
     <Link
       href={`/?selected=${job.id}`}
+      scroll={false}
+      onClick={(e) => {
+        if (!onSelect) return;
+        e.preventDefault();
+        onSelect(job.id);
+      }}
       className="calm-card calm-enter group block p-6"
       style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
     >

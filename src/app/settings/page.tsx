@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getDefaultProfileRow } from "@/lib/matching/profile";
 import { ProfileSettings } from "@/components/ProfileSettings";
+import { ProviderSettings } from "@/components/ProviderSettings";
 import { SiteNav } from "@/components/SiteNav";
 import type { ProfileUpdate } from "@/lib/profile/contract";
 
@@ -64,7 +65,10 @@ export default async function SettingsPage() {
       </section>
 
       <section className="max-w-4xl mx-auto px-6 py-12">
-        <ProfileSettings initial={initial} resumes={resumes} />
+        <div className="grid gap-4">
+          <ProviderSettings />
+          <ProfileSettings initial={initial} resumes={resumes} />
+        </div>
       </section>
     </div>
   );

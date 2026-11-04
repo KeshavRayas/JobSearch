@@ -1,9 +1,9 @@
 import { Suspense } from "react";
+import { after } from "next/server";
+import { unstable_cache } from "next/cache";
 import Link from "next/link";
-import nextDynamic from "next/dynamic";
 import { JobFilters } from "@/components/JobFilters";
-import { JobCard } from "@/components/JobCard";
-import { Pagination } from "@/components/Pagination";
+import { JobBrowser } from "@/components/JobBrowser";
 import {
   searchJobs,
   getSignalSkillCounts,
@@ -12,16 +12,7 @@ import { logSearchEvent } from "@/lib/repositories/search.repository";
 import type { JobFilters as Filters } from "@/lib/types";
 import { RefreshButton } from "@/components/RefreshButton";
 import { JobImport } from "@/components/JobImport";
-import { ModalShell } from "@/components/ModalShell";
 import { SiteNav } from "@/components/SiteNav";
-
-// Code-split: the detail cockpit (panel + all its fetch logic) ships as a
-// separate chunk instead of weighing down the initial homepage bundle.
-// It only renders when ?selected= is present.
-const JobDetailPanel = nextDynamic(
-  () => import("@/components/JobDetailPanel").then((m) => m.JobDetailPanel),
-  { ssr: true },
-);
 
 type SearchParams = Promise<{
   q?: string;
@@ -36,6 +27,14 @@ type SearchParams = Promise<{
   page?: string;
   selected?: string;
 }>;
+
+// Identical searches are cached briefly. Ingestion routes call
+// revalidateTag("jobs") so Refresh never serves stale rows.
+const cachedSearch = unstable_cache(
+  async (serialized: string) => searchJobs(JSON.parse(serialized) as Filters),
+  ["jobs-search"],
+  { revalidate: 15, tags: ["jobs"] },
+);
 
 export const dynamic = "force-dynamic";
 
@@ -61,14 +60,18 @@ export default async function HomePage({
     pageSize: 20,
   };
 
-  // All three are independent (log is a blind write, list + counts read
-  // different slices) — one round of parallel queries instead of three
-  // sequential Neon round trips.
+  // List + counts are independent reads. Search logging is a blind write and
+  // must not hold the response: schedule it after the response is sent.
   const [result, skillCounts] = await Promise.all([
-    searchJobs(filters),
+    cachedSearch(JSON.stringify(filters)),
     getSignalSkillCounts(),
-    filters.query ? logSearchEvent(filters.query) : Promise.resolve(),
   ]);
+  if (filters.query) {
+    const query = filters.query;
+    after(async () => {
+      await logSearchEvent(query).catch(() => {});
+    });
+  }
   const selectedId = sp.selected;
 
   return (
@@ -122,28 +125,14 @@ export default async function HomePage({
             </p>
           </div>
         ) : (
-          <>
-            <div className="calm-wrap mt-10 grid gap-4">
-              {result.data.map((job, i) => (
-                <JobCard key={job.id} job={job} index={i} />
-              ))}
-            </div>
-            <Pagination
-              currentPage={result.page}
-              totalPages={result.totalPages}
-            />
-          </>
+          <JobBrowser
+            jobs={result.data}
+            page={result.page}
+            totalPages={result.totalPages}
+            initialSelected={selectedId ?? null}
+          />
         )}
       </section>
-
-      {/* Centered detail modal — Suspense covers the code-split panel chunk */}
-      {selectedId && (
-        <Suspense>
-          <ModalShell>
-            <JobDetailPanel jobs={result.data} />
-          </ModalShell>
-        </Suspense>
-      )}
     </div>
   );
 }

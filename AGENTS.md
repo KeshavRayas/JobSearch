@@ -37,8 +37,9 @@ This file is the entry point for agents. Read it before changing code or data.
    validates with Zod and upserts idempotently.
 5. **All page queries go through `src/lib/repositories/`.**
 6. **UI is locked to Calm Focus.** See `DESIGN_CALM_FOCUS.md`.
-7. **Never expose secrets.** `.env` is gitignored; BYOK keys stay in browser
-   localStorage; logs mask keys.
+7. **Never expose secrets.** `.env` is gitignored; provider API keys are entered
+   only in Settings → AI providers and stay in browser localStorage. The job
+   modal only selects a saved connection/model.
 
 ## Quick commands
 
@@ -96,6 +97,7 @@ All routes are unauthenticated and local-only.
 | -------- | ---------------------------- | ------------------------------------------------------------- |
 | GET      | `/api/jobs`                  | search/filter (`q`, `location`, `workMode`, `skills`, `page`) |
 | GET      | `/api/jobs/:id`              | one job                                                       |
+| GET      | `/api/jobs/:id/state`        | all panel artifacts in one request                            |
 | GET/POST | `/api/jobs/:id/analyze`      | cached / run analysis                                         |
 | GET/POST | `/api/jobs/:id/tailor`       | cached / run tailoring                                        |
 | GET/POST | `/api/jobs/:id/validate`     | cached / semantic validation                                  |

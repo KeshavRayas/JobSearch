@@ -93,6 +93,10 @@ Forbidden: `border-3`, `border-4`, `brutal-shadow-*`, `bg-yellow`, `bg-green`,
 - `src/app/settings/page.tsx`, `src/components/ProfileSettings.tsx` — calm
   settings (identity, preferences, skills, role goals, base resume)
 - `src/components/SiteNav.tsx` — shared quiet pill navigation
+- `src/components/ProviderSettings.tsx` — the only API-key entry point
+  (Settings → AI providers); the job panel selects the active model
+- `src/components/JobBrowser.tsx` — client-side job selection/modal, no server
+  round trip on open
 - `src/app/resumes/page.tsx`, `resumes/new`, `resumes/[id]` — calm index +
   editor (ResumeForm/ResumeSectionEditor/ResumeUploadButton/
   DeleteResumeButton/LatexEditor chrome); section form used when no tex
