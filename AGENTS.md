@@ -19,18 +19,22 @@ minimal text.
 # Job Search — agent guide
 
 A single-user, local-first job application system. It ingests postings, ranks
-them, tailors a resume with evidence, renders an ATS-checked PDF, and gets you
-to the apply page. There is no auth layer; never expose it publicly.
+them, tailors an editable resume draft with evidence, renders an ATS-checked
+PDF after approval, and gets you to the apply page. There is no auth layer;
+never expose it publicly.
 
 This file is the entry point for agents. Read it before changing code or data.
 
 ## Golden rules
 
 1. **Every LLM claim must trace to base-resume evidence.** Items carry
-   `provenance.sourceIds`; unknown IDs, invented skills, and changed facts must
-   fail validation. Never weaken this to make a flow pass.
-2. **Persist only validated output.** Invalid model JSON → one repair retry →
-   502 and nothing written.
+   `provenance.sourceIds`. Unknown IDs or mismatched "unchanged" text become
+   visible draft warnings — never silently dropped, never auto-approved. Skills
+   are copied verbatim from the base resume.
+2. **Persist only schema-valid model JSON.** Invalid model JSON → one repair
+   retry → 502 and nothing written. Tailored output persists as an editable
+   `DRAFT`; only explicit user approval moves it to `APPROVED`, and PDF requires
+   `APPROVED`.
 3. **`JobMatch.score` is deterministic and immutable.** No LLM flow reads or
    writes it. Match and verdict stay side by side.
 4. **Source adapters never touch Prisma.** They return `RawJob[]`; the pipeline
@@ -48,7 +52,7 @@ bun install
 bun run check:env       # doctor: env, provider, sources, digest
 bun run audit           # machine-readable install health (jobs visible? base resume?)
 bun run smoke:llm       # one provider call; proves model auth + JSON
-bun run smoke:flow      # analyze → tailor → validate → PDF → cover
+bun run smoke:flow      # analyze → tailor → approve → PDF
 bun run db:migrate      # apply Prisma migrations
 bun run dev             # http://localhost:3000
 bun run test            # unit only (no DB)
@@ -68,9 +72,8 @@ bun run agent -- jobs show <jobId>
 
 bun run agent -- analyze <jobId>
 bun run agent -- tailor <jobId>
-bun run agent -- validate <jobId>
+bun run agent -- approve <jobId>
 bun run agent -- pdf <jobId>
-bun run agent -- cover <jobId>
 
 bun run agent -- decision <jobId> --status SAVED|APPLIED|QUEUED|OPENED|SKIPPED
 bun run agent -- ingest
@@ -99,11 +102,11 @@ All routes are unauthenticated and local-only.
 | GET      | `/api/jobs/:id/state`        | all panel artifacts in one request                            |
 | POST     | `/api/llm/models`            | validate key + list provider models                           |
 | GET/POST | `/api/jobs/:id/analyze`      | cached / run analysis                                         |
-| GET/POST | `/api/jobs/:id/tailor`       | cached / run tailoring                                        |
-| GET/POST | `/api/jobs/:id/validate`     | cached / semantic validation                                  |
-| GET/POST | `/api/jobs/:id/pdf`          | PDF state / render + ATS                                      |
+| GET/POST | `/api/jobs/:id/tailor`       | cached / run tailoring (POST)                                 |
+| PUT      | `/api/jobs/:id/tailor`       | save edits, reopens `DRAFT`                                   |
+| POST     | `/api/jobs/:id/approve`      | approve the current draft before PDF                          |
+| GET/POST | `/api/jobs/:id/pdf`          | PDF state / render + ATS (requires `APPROVED`)                |
 | GET      | `/api/jobs/:id/pdf/download` | download rendered PDF                                         |
-| GET/POST | `/api/jobs/:id/cover`        | cover letter                                                  |
 | GET/POST | `/api/jobs/:id/decision`     | tracker state                                                 |
 | POST     | `/api/jobs/:id/liveness`     | apply-URL check                                               |
 | POST     | `/api/jobs/import`           | import one job by URL                                         |
@@ -114,7 +117,7 @@ All routes are unauthenticated and local-only.
 | GET/POST | `/api/llm/test`              | provider check                                                |
 
 `POST` flows accept `?refresh=1`. Prerequisite failures are `422`; provider or
-validation failures are `502`; missing rows are `404`.
+invalid-JSON failures are `502`; missing rows are `404`.
 
 ## Recipes
 
@@ -129,10 +132,9 @@ bun run agent -- jobs list --limit 20
 
 ```bash
 bun run agent -- analyze <jobId>
-bun run agent -- tailor <jobId>
-bun run agent -- validate <jobId>      # must be SEMANTIC_VALID before PDF
+bun run agent -- tailor <jobId>        # creates an editable DRAFT
+bun run agent -- approve <jobId>       # required before PDF
 bun run agent -- pdf <jobId>
-bun run agent -- cover <jobId>
 bun run agent -- decision <jobId> --status APPLIED
 ```
 
@@ -149,7 +151,7 @@ bun run smoke:llm
 - `smoke:llm` 401/expired → run `opencode auth login` or set `OPENCODE_MODEL`
   to an authenticated provider (this machine uses `google/gemini-3.5-flash`).
 - `422` on tailor → no `JobAnalysis`; run analyze first.
-- `422` on PDF → tailored resume is not `SEMANTIC_VALID`; run validate first.
+- `422` on PDF → the current draft is not `APPROVED`; run approve first.
 - `EmptyResumeError` → `Profile.baseResumeId` missing or resume has no sections.
 
 ## Data flow
@@ -160,14 +162,14 @@ sources → RawJob (Zod) → ingestion pipeline → Job (+ searchVector)
 Profile, Resume ─────────────────────┼──→ matcher → JobMatch / NightlyRun / digest
                                      │
 Job → Analyze → JobAnalysis
-    → Tailor  → TailoredResume (STRUCTURAL_VALID, evidence IDs)
-    → Validate→ SEMANTIC_VALID | SEMANTIC_INVALID
-    → PDF     → storage/pdfs/... + ATS result (only SEMANTIC_VALID)
-    → Cover   → persisted validated artifact
+    → Tailor  → TailoredResume (DRAFT, evidence IDs, warnings)
+    → Edit    → TailoredResume (still DRAFT)
+    → Approve → TailoredResume (APPROVED)
+    → PDF     → storage/pdfs/... + ATS result (only APPROVED)
     → Decision → tracker
 ```
 
-Key files: `src/lib/{sources,ingestion,matching,analysis,tailor,cover,pdf,repositories}/`,
+Key files: `src/lib/{sources,ingestion,matching,analysis,tailor,pdf,repositories}/`,
 `prisma/schema.prisma`, `docs/architecture.md`, `docs/schema.md`.
 
 ## Environment
@@ -209,13 +211,13 @@ Muse Spark models use the Responses API: base URL
   the DB has none, cleans them in teardown. Never point E2E at a foreign server.
 - Add an E2E spec for user-visible behavior; add integration coverage for
   service contracts. Do not add DB tests to the unit suite.
-- `bun run smoke:flow` verifies all five LLM flows on one real job.
+- `bun run smoke:flow` verifies analyze → tailor → approve → PDF on one real job.
 - The current evidence file is `docs/verified-local.md`.
 
 ## Change checklist
 
-1. Does the change preserve the evidence/provenance and persist-only-validated
-   rules?
+1. Does the change preserve provenance warnings and the draft → approval gate
+   before PDF?
 2. Does it keep `JobMatch.score` untouched?
 3. Did you update `scripts/agent.ts` and this file if the agent surface changed?
 4. Did you run `bun run lint && bun run typecheck && bun run test`?

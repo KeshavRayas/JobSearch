@@ -44,11 +44,11 @@ async function main() {
     ? (resumes.find((r) => r.id === profile.baseResumeId) ?? null)
     : (resumes[0] ?? null);
 
-  const [analyses, tailored, covers, decisions, nightlyRuns] =
+  const [analyses, tailored, approved, decisions, nightlyRuns] =
     await Promise.all([
       prisma.jobAnalysis.count(),
       prisma.tailoredResume.count(),
-      prisma.coverLetter.count(),
+      prisma.tailoredResume.count({ where: { status: "APPROVED" } }),
       prisma.applicationDecision.count(),
       prisma.nightlyRun.count(),
     ]);
@@ -58,7 +58,8 @@ async function main() {
     select: {
       jobId: true,
       version: true,
-      validationStatus: true,
+      status: true,
+      warnings: true,
       renderStatus: true,
       createdAt: true,
     },
@@ -98,7 +99,7 @@ async function main() {
     artifacts: {
       analyses,
       tailored,
-      covers,
+      approved,
       decisions,
       nightlyRuns,
       latestTailored,

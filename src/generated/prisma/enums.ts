@@ -125,10 +125,9 @@ export const AtsStatus = {
 export type AtsStatus = (typeof AtsStatus)[keyof typeof AtsStatus]
 
 
-export const TailorValidationStatus = {
-  STRUCTURAL_VALID: 'STRUCTURAL_VALID',
-  SEMANTIC_VALID: 'SEMANTIC_VALID',
-  SEMANTIC_INVALID: 'SEMANTIC_INVALID'
+export const TailorStatus = {
+  DRAFT: 'DRAFT',
+  APPROVED: 'APPROVED'
 } as const
 
-export type TailorValidationStatus = (typeof TailorValidationStatus)[keyof typeof TailorValidationStatus]
+export type TailorStatus = (typeof TailorStatus)[keyof typeof TailorStatus]

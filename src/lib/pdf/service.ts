@@ -9,12 +9,12 @@ import { compileLatex, compileTypst, RenderError } from "@/lib/pdf/compile";
 import { extractPdfText, runAtsChecks, type AtsResult } from "@/lib/pdf/ats";
 import { getOrCreateDefaultProfile } from "@/lib/matching/profile";
 
-export class NotValidatedError extends Error {
+export class NotApprovedError extends Error {
   constructor(status: string) {
     super(
-      `refusing to render: validationStatus is ${status}, need SEMANTIC_VALID`,
+      `refusing to render: status is ${status}, approve the resume draft first`,
     );
-    this.name = "NotValidatedError";
+    this.name = "NotApprovedError";
   }
 }
 
@@ -47,8 +47,8 @@ export async function renderPdf(jobId: string): Promise<{
     orderBy: { version: "desc" },
   });
   if (!tailored) throw new NothingToRenderError();
-  if (tailored.validationStatus !== "SEMANTIC_VALID") {
-    throw new NotValidatedError(tailored.validationStatus);
+  if (tailored.status !== "APPROVED") {
+    throw new NotApprovedError(tailored.status);
   }
 
   const job = await prisma.job.findUnique({
@@ -175,7 +175,7 @@ export async function getPdfState(jobId: string) {
   });
   if (!tailored) throw new NothingToRenderError();
   return {
-    validationStatus: tailored.validationStatus,
+    status: tailored.status,
     renderStatus: tailored.renderStatus,
     renderedAt: tailored.renderedAt,
     hasPdf: tailored.renderStatus === "SUCCESS" && tailored.pdfPath !== null,

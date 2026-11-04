@@ -15,6 +15,7 @@ import {
   type LlmStore,
 } from "@/lib/llm/client";
 import { formatUsage } from "@/lib/llm/byok";
+import { TailorDraftEditor } from "@/components/TailorDraftEditor";
 
 interface LlmCallMeta {
   usage?: {
@@ -63,13 +64,6 @@ interface TailoredSectionView {
   items: TailoredItemView[];
 }
 
-interface SemanticIssueView {
-  itemId: string;
-  type: string;
-  severity: "LOW" | "MEDIUM" | "HIGH";
-  explanation: string;
-}
-
 interface AtsResultView {
   textExtractable: boolean;
   charCount: number;
@@ -93,43 +87,13 @@ interface TailoredResumeView extends LlmCallMeta {
   version?: number;
   versionCount?: number;
   sections: TailoredSectionView[];
-  validationStatus?: "STRUCTURAL_VALID" | "SEMANTIC_VALID" | "SEMANTIC_INVALID";
-  validationResult?: { valid: boolean; issues: SemanticIssueView[] } | null;
-  validatedAt?: string | null;
+  status: "DRAFT" | "APPROVED";
+  warnings: string[];
   renderStatus?: "PENDING" | "SUCCESS" | "FAILED";
   atsStatus?: "PENDING" | "CHECKED";
   atsResult?: AtsResultView | null;
   cached?: boolean;
 }
-
-interface CoverLetterView extends LlmCallMeta {
-  id: string;
-  content: {
-    subject?: string;
-    greeting: string;
-    paragraphs: string[];
-    closing: string;
-  };
-  cached?: boolean;
-}
-
-function renderTailoredFields(fields: TailoredItemView["fields"]): string {
-  const parts: string[] = [];
-  for (const value of Object.values(fields)) {
-    if (typeof value === "string" && value.trim()) parts.push(value.trim());
-    else if (Array.isArray(value) && value.length > 0)
-      parts.push(value.join(" • "));
-  }
-  return parts.join(" — ");
-}
-
-const CHANGE_STYLES: Record<TailoredItemView["provenance"]["change"], string> =
-  {
-    UNCHANGED: "border-black/10 text-black/60",
-    REWRITE: "border-black/30 text-black",
-    REORDER: "border-black/10 text-black/60",
-    COMBINE: "border-black/30 text-black",
-  };
 
 export function JobDetailPanel({
   jobs,
@@ -152,12 +116,7 @@ export function JobDetailPanel({
   const [tailored, setTailored] = useState<TailoredResumeView | null>(null);
   const [tailoring, setTailoring] = useState(false);
   const [tailorError, setTailorError] = useState<string | null>(null);
-  const [validating, setValidating] = useState(false);
   const [rendering, setRendering] = useState(false);
-
-  const [cover, setCover] = useState<CoverLetterView | null>(null);
-  const [covering, setCovering] = useState(false);
-  const [coverError, setCoverError] = useState<string | null>(null);
 
   const [decision, setDecision] = useState<string | null>(null);
   const [deciding, setDeciding] = useState(false);
@@ -241,8 +200,6 @@ export function JobDetailPanel({
     setAnalysisError(null);
     setTailored(null);
     setTailorError(null);
-    setCover(null);
-    setCoverError(null);
     setDecision(null);
     setLiveness(null);
     setShowFullDesc(false);
@@ -254,8 +211,7 @@ export function JobDetailPanel({
     if (!selectedId) return;
     let cancelled = false;
     // One request returns every persisted artifact for this job. Previously
-    // the panel made five separate HTTP calls (analyze, tailor, decision,
-    // cover), each paying its own Neon round trip.
+    // the panel made separate HTTP calls for each artifact.
     fetch(`/api/jobs/${selectedId}/state`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -270,7 +226,6 @@ export function JobDetailPanel({
         if (data.decision?.status && data.decision.status !== "QUEUED") {
           setDecision(data.decision.status);
         }
-        if (data.cover?.content) setCover(data.cover);
       })
       .catch(() => {});
     return () => {
@@ -356,39 +311,6 @@ export function JobDetailPanel({
     );
   }
 
-  async function runValidation() {
-    if (!selectedId || validating) return;
-    setValidating(true);
-    setTailorError(null);
-    const controller = new AbortController();
-    callControllers.current.set("/validate", controller);
-    startCallTimer("/validate");
-    try {
-      const res = await fetch(`/api/jobs/${selectedId}/validate`, {
-        method: "POST",
-        headers: llmHeaders(activeLlm, activeModel),
-        signal: controller.signal,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Validation failed");
-      const refreshed = await fetch(`/api/jobs/${selectedId}/tailor`).then(
-        (r) => (r.ok ? r.json() : null),
-      );
-      if (refreshed?.sections) setTailored(refreshed);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setTailorError("Cancelled.");
-      } else {
-        setTailorError(
-          err instanceof Error ? err.message : "Validation failed",
-        );
-      }
-    } finally {
-      stopCallTimer("/validate");
-      setValidating(false);
-    }
-  }
-
   async function runRender(refresh: boolean) {
     if (!selectedId || rendering) return;
     setRendering(true);
@@ -409,19 +331,6 @@ export function JobDetailPanel({
     } finally {
       setRendering(false);
     }
-  }
-
-  function runCover(refresh: boolean) {
-    return runJobPost(
-      covering,
-      setCovering,
-      setCoverError,
-      "/cover",
-      refresh,
-      "Cover letter failed",
-      setCover,
-      !analysis || !tailored,
-    );
   }
 
   async function setJobDecision(status: string, openUrl = false) {
@@ -757,316 +666,133 @@ export function JobDetailPanel({
                   Tailored Resume
                 </h3>
                 {tailored && (
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/10 bg-white text-green-700">
+                  <span className="px-2.5 py-1 rounded-full text-[11px] uppercase tracking-[0.12em] border border-black/10 bg-white text-black/55">
                     {tailored.sections.reduce((n, s) => n + s.items.length, 0)}{" "}
                     items
                     {tailored.version ? ` · v${tailored.version}` : ""}
-                    {tailored.versionCount && tailored.versionCount > 1
-                      ? ` of ${tailored.versionCount}`
-                      : ""}
                   </span>
                 )}
               </div>
 
-              {tailored && (
-                <div className="space-y-4">
-                  {tailored.sections.map((section) => (
-                    <div key={section.id}>
-                      <p className="text-[12px] font-bold uppercase tracking-widest mb-1.5">
-                        {section.title}
-                      </p>
-                      <div className="space-y-1.5">
-                        {section.items.map((item) => (
-                          <div key={item.id} className="flex items-start gap-2">
-                            <span
-                              className={`shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border ${CHANGE_STYLES[item.provenance.change]}`}
-                            >
-                              {item.provenance.change}
-                            </span>
-                            <p className="text-body font-medium leading-relaxed">
-                              {renderTailoredFields(item.fields)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {tailorError && (
-                <p className="text-body font-bold text-red">{tailorError}</p>
-              )}
-
-              {tailored && (
-                <div className="p-3 border border-black/10 rounded-[12px] bg-white space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[12px] font-bold uppercase tracking-widest">
-                      Evidence check
-                    </span>
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/10 bg-white ${
-                        tailored.validationStatus === "SEMANTIC_VALID"
-                          ? "text-green-700"
-                          : tailored.validationStatus === "SEMANTIC_INVALID"
-                            ? "text-red-600"
-                            : "text-yellow-700"
-                      }`}
-                    >
-                      {tailored.validationStatus === "SEMANTIC_VALID"
-                        ? "Valid"
-                        : tailored.validationStatus === "SEMANTIC_INVALID"
-                          ? "Issues found"
-                          : "Structural only"}
-                    </span>
-                  </div>
-
-                  {tailored.validationResult?.issues?.length ? (
-                    <ul className="space-y-1.5">
-                      {tailored.validationResult.issues.map((issue, i) => (
-                        <li
-                          key={`${issue.itemId}-${i}`}
-                          className="text-body font-medium leading-relaxed"
-                        >
-                          <span className="font-bold">[{issue.severity}]</span>{" "}
-                          <span className="font-bold">{issue.itemId}</span> —{" "}
-                          {issue.explanation}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    tailored.validationStatus === "SEMANTIC_VALID" && (
-                      <p className="text-body font-medium">
-                        Every claim traces to base-resume evidence. Render the
-                        PDF below.
-                      </p>
-                    )
-                  )}
-
-                  <button
-                    onClick={runValidation}
-                    disabled={!mounted || validating}
-                    className="w-full flex items-center justify-center gap-2 bg-white text-black font-medium px-4 py-2.5 rounded-full border border-black/10 text-[13px] hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
-                  >
-                    {validating
-                      ? `Checking…${timerFor("/validate")}`
-                      : "Check Evidence"}
-                  </button>
-                  {cancelButton("/validate", validating)}
-                </div>
-              )}
-
-              {/* Keyword gap (Phase 3A): pure read of the saved analysis —
-                  no model call. Shows what the JD asks vs what the resume
-                  evidences, before tailoring. Hidden once tailored. */}
-              {analysis && !tailored && (
-                <div className="p-3 border border-black/10 rounded-[12px] bg-white space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[12px] font-bold uppercase tracking-widest">
-                      Keyword fit
-                    </span>
-                    <span className="text-[12px] font-bold uppercase tracking-widest text-black/55">
-                      {analysis.matchedSkills.length} of{" "}
-                      {analysis.matchedSkills.length +
-                        analysis.missingSkills.length}{" "}
-                      covered
-                    </span>
-                  </div>
-                  {analysis.matchedSkills.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {analysis.matchedSkills.map((s) => (
-                        <span
-                          key={s}
-                          className="px-2.5 py-1 rounded-full bg-black/[0.04] text-[11px] font-medium text-black/60"
-                        >
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {analysis.missingSkills.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {analysis.missingSkills.map((s) => (
-                        <span
-                          key={s}
-                          className="px-2.5 py-1 rounded-full text-[12px] font-bold uppercase tracking-widest border border-black/10 bg-white"
-                        >
-                          {s} · gap
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-[12px] font-medium text-black/55">
-                    Tailoring rephrases from your evidence — it never invents
-                    the gaps above.
-                  </p>
-                </div>
-              )}
-
-              <button
-                onClick={() => runTailor(!!tailored)}
-                disabled={!mounted || tailoring || !analysis}
-                className="w-full flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
-              >
-                <FileText className="w-4 h-4" />
-                {tailoring
-                  ? `Tailoring…${timerFor("/tailor")}`
-                  : tailored
-                    ? "Re-tailor Resume"
-                    : "Tailor Resume"}
-              </button>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[12px] font-medium text-black/55">
-                  {analysis
-                    ? "Built from your base resume + the analysis above. Every item cites its evidence."
-                    : "Analyze the job first — tailoring builds on the analysis."}
-                </p>
-                {cancelButton("/tailor", tailoring)}
-              </div>
-              {tailored && <UsageLine meta={tailored} />}
-
-              {tailored && tailored.validationStatus === "SEMANTIC_VALID" && (
-                <div className="p-3 border border-black/10 rounded-[12px] bg-white space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[12px] font-bold uppercase tracking-widest">
-                      PDF + ATS check
-                    </span>
-                    {tailored.renderStatus === "SUCCESS" && (
-                      <a
-                        href={`/api/jobs/${selectedId}/pdf/download`}
-                        className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/30 text-black"
-                      >
-                        Download
-                      </a>
-                    )}
-                  </div>
-
-                  {tailored.atsStatus === "CHECKED" && tailored.atsResult && (
-                    <ul className="space-y-1">
-                      <li className="text-body font-medium">
-                        {tailored.atsResult.textExtractable ? "✓" : "✗"} PDF
-                        text is extractable
-                      </li>
-                      <li className="text-body font-medium">
-                        {Object.values(tailored.atsResult.sections).every(
-                          Boolean,
-                        )
-                          ? "✓"
-                          : "⚠"}{" "}
-                        Sections detected (
-                        {
-                          Object.values(tailored.atsResult.sections).filter(
-                            Boolean,
-                          ).length
-                        }
-                        /4)
-                      </li>
-                      <li className="text-body font-medium">
-                        {tailored.atsResult.missingKeywords.length === 0
-                          ? "✓"
-                          : "⚠"}{" "}
-                        {tailored.atsResult.requiredSkillsFound}/
-                        {tailored.atsResult.requiredSkillsTotal} required skills
-                        present
-                      </li>
-                      {tailored.atsResult.warnings.slice(0, 6).map((w) => (
-                        <li
-                          key={w}
-                          className="text-body font-medium text-black/55"
-                        >
-                          ⚠ {w}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {tailored.renderStatus === "FAILED" && (
-                    <p className="text-body font-bold text-red">
-                      Render failed — check server logs. Content is untouched;
-                      fix the template and re-render.
-                    </p>
-                  )}
-
-                  <button
-                    onClick={() =>
-                      runRender(tailored.renderStatus === "SUCCESS")
+              {tailored ? (
+                <div className="space-y-3">
+                  <TailorDraftEditor
+                    key={`${tailored.id}-${tailored.status}`}
+                    jobId={selectedId}
+                    draft={tailored}
+                    onUpdated={(next) =>
+                      setTailored(next as TailoredResumeView)
                     }
-                    disabled={!mounted || rendering}
-                    className="w-full flex items-center justify-center gap-2 bg-white text-black font-medium px-4 py-2.5 rounded-full border border-black/10 text-[13px] hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
-                  >
-                    {rendering
-                      ? "Rendering…"
-                      : tailored.renderStatus === "SUCCESS"
-                        ? "Re-render PDF"
-                        : "Render PDF"}
-                  </button>
-                </div>
-              )}
-            </div>
+                  />
 
-            {/* Cover Letter Section */}
-            <div className="p-4 border border-black/10 rounded-[14px] bg-black/[0.03] space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="font-serif-calm text-[22px] flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Cover letter
-                </h3>
-                {cover && (
-                  <span className="px-2.5 py-1 rounded-full text-[12px] font-bold uppercase tracking-widest border border-black/10 bg-white">
-                    Saved
-                  </span>
-                )}
-              </div>
-
-              {cover && (
-                <div className="p-3 border border-black/10 rounded-[12px] bg-white space-y-2">
-                  {cover.content.subject && (
-                    <p className="text-body font-bold leading-relaxed">
-                      {cover.content.subject}
-                    </p>
+                  {tailorError && (
+                    <p className="text-[13px] text-red-700/80">{tailorError}</p>
                   )}
-                  <p className="text-body font-medium leading-relaxed">
-                    {cover.content.greeting}
-                  </p>
-                  {cover.content.paragraphs.map((p) => (
-                    <p
-                      key={p.slice(0, 32)}
-                      className="text-body font-medium leading-relaxed"
-                    >
-                      {p}
-                    </p>
-                  ))}
-                  <p className="text-body font-medium leading-relaxed">
-                    {cover.content.closing}
-                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => runTailor(true)}
+                    disabled={!mounted || tailoring}
+                    className="text-[12px] text-black/50 underline underline-offset-4 hover:text-black disabled:opacity-50"
+                  >
+                    {tailoring
+                      ? `Re-tailoring…${timerFor("/tailor")}`
+                      : "Start over from the base resume"}
+                  </button>
+                  {cancelButton("/tailor", tailoring)}
+
+                  {tailored.status === "APPROVED" && (
+                    <div className="p-3 border border-black/10 rounded-[12px] bg-white space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[12px] font-bold uppercase tracking-widest">
+                          PDF + ATS check
+                        </span>
+                        {tailored.renderStatus === "SUCCESS" && (
+                          <a
+                            href={`/api/jobs/${selectedId}/pdf/download`}
+                            className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/30 text-black"
+                          >
+                            Download
+                          </a>
+                        )}
+                      </div>
+
+                      {tailored.atsStatus === "CHECKED" &&
+                        tailored.atsResult && (
+                          <ul className="space-y-1 text-[12px] text-black/55">
+                            <li>
+                              {tailored.atsResult.textExtractable ? "✓" : "?"}{" "}
+                              text layer ·{" "}
+                              {tailored.atsResult.keywordCoverage
+                                ? Math.round(
+                                    tailored.atsResult.keywordCoverage * 100,
+                                  )
+                                : 0}
+                              % keyword coverage
+                            </li>
+                            <li>
+                              {tailored.atsResult.requiredSkillsFound}/
+                              {tailored.atsResult.requiredSkillsTotal} required
+                              skills present
+                            </li>
+                            {tailored.atsResult.warnings
+                              .slice(0, 6)
+                              .map((w) => (
+                                <li key={w}>⚠ {w}</li>
+                              ))}
+                          </ul>
+                        )}
+
+                      {tailored.renderStatus === "FAILED" && (
+                        <p className="text-[13px] text-red-700/80">
+                          Render failed — check server logs. Content is
+                          untouched.
+                        </p>
+                      )}
+
+                      <button
+                        onClick={() =>
+                          runRender(tailored.renderStatus === "SUCCESS")
+                        }
+                        disabled={!mounted || rendering}
+                        className="w-full flex items-center justify-center gap-2 bg-white text-black font-medium px-4 py-2.5 rounded-full border border-black/10 text-[13px] hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
+                      >
+                        {rendering
+                          ? "Rendering…"
+                          : tailored.renderStatus === "SUCCESS"
+                            ? "Re-render PDF"
+                            : "Render PDF"}
+                      </button>
+                    </div>
+                  )}
                 </div>
+              ) : (
+                <>
+                  <p className="text-[12px] font-medium text-black/55">
+                    {analysis
+                      ? "Generate an editable draft from the analysis and your base resume."
+                      : "Analyze the job first — tailoring builds on the analysis."}
+                  </p>
+                  <button
+                    onClick={() => runTailor(false)}
+                    disabled={!mounted || tailoring || !analysis}
+                    className="w-full flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
+                  >
+                    <FileText className="w-4 h-4" />
+                    {tailoring
+                      ? `Tailoring…${timerFor("/tailor")}`
+                      : "Tailor Resume"}
+                  </button>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[12px] font-medium text-black/55">
+                      {tailorError
+                        ? tailorError
+                        : "You can edit every field before approving."}
+                    </p>
+                    {cancelButton("/tailor", tailoring)}
+                  </div>
+                </>
               )}
-
-              {coverError && (
-                <p className="text-body font-bold text-red">{coverError}</p>
-              )}
-
-              <button
-                onClick={() => runCover(!!cover)}
-                disabled={!mounted || covering || !analysis || !tailored}
-                className="w-full flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
-              >
-                <FileText className="w-4 h-4" />
-                {covering
-                  ? `Writing…${timerFor("/cover")}`
-                  : cover
-                    ? "Regenerate letter"
-                    : "Write cover letter"}
-              </button>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[12px] font-medium text-black/55">
-                  {analysis && tailored
-                    ? "Built from the analysis + tailored resume above. Every claim cites base-resume evidence."
-                    : "Analyze the job and tailor a resume first — the letter builds on both."}
-                </p>
-                {cancelButton("/cover", covering)}
-              </div>
-              {cover && <UsageLine meta={cover} />}
             </div>
           </div>
         )}

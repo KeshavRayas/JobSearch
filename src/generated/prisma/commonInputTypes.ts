@@ -528,11 +528,11 @@ export type JsonNullableWithAggregatesFilterBase<$PrismaModel = never> = {
   _max?: Prisma.NestedJsonNullableFilter<$PrismaModel>
 }
 
-export type EnumTailorValidationStatusFilter<$PrismaModel = never> = {
-  equals?: $Enums.TailorValidationStatus | Prisma.EnumTailorValidationStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.TailorValidationStatus[] | Prisma.ListEnumTailorValidationStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.TailorValidationStatus[] | Prisma.ListEnumTailorValidationStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumTailorValidationStatusFilter<$PrismaModel> | $Enums.TailorValidationStatus
+export type EnumTailorStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.TailorStatus | Prisma.EnumTailorStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.TailorStatus[] | Prisma.ListEnumTailorStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TailorStatus[] | Prisma.ListEnumTailorStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTailorStatusFilter<$PrismaModel> | $Enums.TailorStatus
 }
 
 export type EnumRenderStatusFilter<$PrismaModel = never> = {
@@ -549,14 +549,14 @@ export type EnumAtsStatusFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumAtsStatusFilter<$PrismaModel> | $Enums.AtsStatus
 }
 
-export type EnumTailorValidationStatusWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.TailorValidationStatus | Prisma.EnumTailorValidationStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.TailorValidationStatus[] | Prisma.ListEnumTailorValidationStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.TailorValidationStatus[] | Prisma.ListEnumTailorValidationStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumTailorValidationStatusWithAggregatesFilter<$PrismaModel> | $Enums.TailorValidationStatus
+export type EnumTailorStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TailorStatus | Prisma.EnumTailorStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.TailorStatus[] | Prisma.ListEnumTailorStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TailorStatus[] | Prisma.ListEnumTailorStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTailorStatusWithAggregatesFilter<$PrismaModel> | $Enums.TailorStatus
   _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumTailorValidationStatusFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumTailorValidationStatusFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTailorStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTailorStatusFilter<$PrismaModel>
 }
 
 export type EnumRenderStatusWithAggregatesFilter<$PrismaModel = never> = {
@@ -1030,11 +1030,11 @@ export type NestedJsonNullableFilterBase<$PrismaModel = never> = {
   not?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel> | Prisma.JsonNullValueFilter
 }
 
-export type NestedEnumTailorValidationStatusFilter<$PrismaModel = never> = {
-  equals?: $Enums.TailorValidationStatus | Prisma.EnumTailorValidationStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.TailorValidationStatus[] | Prisma.ListEnumTailorValidationStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.TailorValidationStatus[] | Prisma.ListEnumTailorValidationStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumTailorValidationStatusFilter<$PrismaModel> | $Enums.TailorValidationStatus
+export type NestedEnumTailorStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.TailorStatus | Prisma.EnumTailorStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.TailorStatus[] | Prisma.ListEnumTailorStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TailorStatus[] | Prisma.ListEnumTailorStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTailorStatusFilter<$PrismaModel> | $Enums.TailorStatus
 }
 
 export type NestedEnumRenderStatusFilter<$PrismaModel = never> = {
@@ -1051,14 +1051,14 @@ export type NestedEnumAtsStatusFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumAtsStatusFilter<$PrismaModel> | $Enums.AtsStatus
 }
 
-export type NestedEnumTailorValidationStatusWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.TailorValidationStatus | Prisma.EnumTailorValidationStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.TailorValidationStatus[] | Prisma.ListEnumTailorValidationStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.TailorValidationStatus[] | Prisma.ListEnumTailorValidationStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumTailorValidationStatusWithAggregatesFilter<$PrismaModel> | $Enums.TailorValidationStatus
+export type NestedEnumTailorStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TailorStatus | Prisma.EnumTailorStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.TailorStatus[] | Prisma.ListEnumTailorStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TailorStatus[] | Prisma.ListEnumTailorStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTailorStatusWithAggregatesFilter<$PrismaModel> | $Enums.TailorStatus
   _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumTailorValidationStatusFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumTailorValidationStatusFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTailorStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTailorStatusFilter<$PrismaModel>
 }
 
 export type NestedEnumRenderStatusWithAggregatesFilter<$PrismaModel = never> = {

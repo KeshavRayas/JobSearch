@@ -85,23 +85,23 @@ written by any LLM flow.
 
 ## Data flow: LLM features
 
-All five flows share one shape:
+LLM flows share one shape:
 
 ```text
 explicit user action
   → build prompt from persisted context (never re-fetch the world)
   → provider.generateJson()
   → Zod shape check (+ one repair retry)
-  → deterministic validation (evidence IDs, verbatim checks, gates)
-  → persist only if valid; otherwise 502 and nothing is written
+  → persist schema-valid output as a draft (provenance issues become warnings)
+  → user approval gates PDF rendering
 ```
 
 ```text
 Job → Analyze        → JobAnalysis
-Job → Tailor         → TailoredResume (STRUCTURAL_VALID) → evidence checks
-    → Validate       → SEMANTIC_VALID / SEMANTIC_INVALID
-    → PDF            → storage/pdfs + ATS result (SEMANTIC_VALID only)
-    → Cover letter   → CoverLetter
+Job → Tailor         → TailoredResume (DRAFT, evidence IDs + warnings)
+    → Edit / Save    → TailoredResume (DRAFT)
+    → Approve        → TailoredResume (APPROVED)
+    → PDF            → storage/pdfs + ATS result (APPROVED only)
 ```
 
 Provider selection lives in `getDefaultProvider()`:
@@ -109,8 +109,9 @@ Provider selection lives in `getDefaultProvider()`:
 - `LLM_PROVIDER=cloud` → `CloudJsonProvider` (HTTPS, requires key + model).
 - anything else → `OpencodeCliProvider` (spawns `opencode run --format json`).
 
-BYOK: the job panel can store `{provider, baseUrl, model, key}` in localStorage
-and bypass the shared provider for that browser.
+BYOK: provider connections (base URL, model list, key) are stored in browser
+localStorage from Settings → AI providers. The job panel only selects a saved
+connection/model; it never accepts a key.
 
 ## Engineering rules
 
@@ -119,8 +120,8 @@ and bypass the shared provider for that browser.
 3. Ingestion is idempotent: `@@unique([externalId, source])` + `upsert`.
 4. Prisma queries for pages live in `src/lib/repositories/`.
 5. Zod validates API bodies, query params, model output, and env.
-6. LLMs may rephrase but never invent: evidence IDs must resolve against the
-   base resume, and failures persist nothing.
+6. LLMs may rephrase but never invent. Evidence IDs that do not resolve become
+   visible draft warnings; schema-invalid JSON persists nothing.
 7. Presentation tokens live in `src/app/globals.css`; the design system in
    `DESIGN_CALM_FOCUS.md` is locked.
 
@@ -134,7 +135,8 @@ and bypass the shared provider for that browser.
 
 - Ingestion: per-source isolation; a dead feed does not sink the run.
 - LLM: typed `LlmError`; one repair retry on invalid JSON; then 502.
-- PDF: render failure marks `renderStatus = FAILED` without touching content.
+- PDF: render failure marks `renderStatus = FAILED` without touching content;
+  the current draft must be `APPROVED` before rendering.
 - ATS: warnings never block the PDF (the PDF is the artifact being checked).
 - Missing env: `requireEnv` fails fast with a fixable message; `check:env`
   reports the full configuration.

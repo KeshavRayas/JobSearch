@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { analyzeJob } from "@/lib/analysis/service";
-import { tailorResume } from "@/lib/tailor/service";
+import {
+  tailorResume,
+  saveTailoredDraft,
+  approveTailoredResume,
+} from "@/lib/tailor/service";
 import { renderPdf } from "@/lib/pdf/service";
 import { checkUrl } from "@/lib/liveness";
 import { getTopMatches } from "@/lib/repositories/matches.repository";
@@ -137,7 +141,12 @@ async function makeBaseResume() {
     orderBy: { updatedAt: "desc" },
   });
   if (profile) {
-    previousPin = { id: profile.id, baseResumeId: profile.baseResumeId };
+    // Only capture the first pin per test; a test may call this helper more
+    // than once, and restoring an intermediate fixture id would leave the
+    // profile pointing at a deleted row.
+    if (!previousPin) {
+      previousPin = { id: profile.id, baseResumeId: profile.baseResumeId };
+    }
     await prisma.profile.update({
       where: { id: profile.id },
       data: { baseResumeId: r.id },
@@ -306,7 +315,7 @@ describe("tailor failure preservation + versioning", () => {
     );
   });
 
-  it("keeps v1 byte-identical when re-tailor is structurally invalid", async () => {
+  it("persists a new draft with warnings when provenance is soft-invalid", async () => {
     const c = await makeCompany();
     const j = await makeJob(c.id);
     await makeAnalysis(j.id);
@@ -320,20 +329,22 @@ describe("tailor failure preservation + versioning", () => {
       sourceIds: ["bullet_nope_99"],
       change: "REWRITE",
     };
-    await expect(tailorResume(j.id, stubTailored(bad))).rejects.toThrow(
-      /provenance|validation/,
-    );
+    await tailorResume(j.id, stubTailored(bad));
 
     const rows = await prisma.tailoredResume.findMany({
       where: { jobId: j.id },
+      orderBy: { version: "asc" },
     });
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(2);
+    // v1 stays intact; v2 is the current, editable draft.
     expect(rows[0].id).toBe(v1before?.id);
-    expect(rows[0].isCurrent).toBe(true);
-    expect(rows[0].version).toBe(1);
+    expect(rows[0].isCurrent).toBe(false);
     expect(JSON.stringify(rows[0].content)).toBe(
       JSON.stringify(v1before?.content),
     );
+    expect(rows[1].isCurrent).toBe(true);
+    expect(rows[1].status).toBe("DRAFT");
+    expect(rows[1].warnings.join(" ")).toContain("bullet_nope_99");
   });
 
   it("accumulates versions with exactly one current (invariant)", async () => {
@@ -354,6 +365,44 @@ describe("tailor failure preservation + versioning", () => {
   });
 });
 
+describe("editable draft + approval", () => {
+  it("saves edits, keeps warnings visible, and gates PDF until approved", async () => {
+    const c = await makeCompany();
+    const j = await makeJob(c.id);
+    await makeAnalysis(j.id);
+
+    const { tailored } = await tailorResume(
+      j.id,
+      stubTailored(validTailoredFixture()),
+    );
+    expect(tailored.status).toBe("DRAFT");
+    expect(tailored.warnings).toEqual([]);
+
+    const edited = validTailoredFixture();
+    (edited.sections[0].items[0].fields as { content: string }).content =
+      "Edited summary with Go.";
+    const saved = await saveTailoredDraft(j.id, edited);
+    expect(saved.status).toBe("DRAFT");
+    expect(
+      (saved.sections[0].items[0].fields as { content?: string }).content,
+    ).toBe("Edited summary with Go.");
+
+    // A source that does not exist stays visible as a warning after save.
+    edited.sections[0].items[0].provenance.sourceIds = ["missing_evidence"];
+    const warned = await saveTailoredDraft(j.id, edited);
+    expect(warned.warnings.join(" ")).toContain("missing_evidence");
+
+    await expect(renderPdf(j.id)).rejects.toThrow(/approve|APPROVED|status/i);
+
+    const approved = await approveTailoredResume(j.id);
+    expect(approved.status).toBe("APPROVED");
+    const row = await prisma.tailoredResume.findUnique({
+      where: { id: approved.id },
+    });
+    expect(row?.renderStatus).toBe("PENDING");
+  });
+});
+
 describe("pdf failure preservation", () => {
   it("marks FAILED without touching content on invalid stored content", async () => {
     const c = await makeCompany();
@@ -369,7 +418,7 @@ describe("pdf failure preservation", () => {
         baseResumeId: base!.id,
         content: { sections: [] },
         evidenceIds: [],
-        validationStatus: "SEMANTIC_VALID",
+        status: "APPROVED",
       },
     });
     await expect(renderPdf(j.id)).rejects.toThrow();

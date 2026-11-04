@@ -2,10 +2,12 @@ import "dotenv/config";
 import { prisma } from "@/lib/prisma";
 import { getJobById, searchJobs } from "@/lib/repositories/jobs.repository";
 import { analyzeJob, getAnalysis } from "@/lib/analysis/service";
-import { getTailoredResume, tailorResume } from "@/lib/tailor/service";
-import { getValidation, validateTailored } from "@/lib/tailor/validateSemantic";
+import {
+  getTailoredResume,
+  tailorResume,
+  approveTailoredResume,
+} from "@/lib/tailor/service";
 import { getPdfState, renderPdf } from "@/lib/pdf/service";
-import { generateCoverLetter, getCoverLetter } from "@/lib/cover/service";
 import { runIngestionPipeline } from "@/lib/ingestion/pipeline";
 import { runNightly } from "@/lib/matching/nightly";
 import { getDefaultProvider } from "@/lib/analysis/service";
@@ -18,9 +20,8 @@ import { getDefaultProvider } from "@/lib/analysis/service";
 //   bun run agent -- jobs show <jobId>
 //   bun run agent -- analyze <jobId> [--refresh]
 //   bun run agent -- tailor <jobId> [--refresh]
-//   bun run agent -- validate <jobId> [--refresh]
+//   bun run agent -- approve <jobId>
 //   bun run agent -- pdf <jobId> [--refresh]
-//   bun run agent -- cover <jobId> [--refresh]
 //   bun run agent -- decision <jobId> --status SAVED [--reason "..."]
 //   bun run agent -- ingest
 //   bun run agent -- nightly [--top 25]
@@ -72,7 +73,7 @@ function fail(commandName: string, err: unknown) {
       ? 2
       : /not found/i.test(message) || /NotFound/.test(name)
         ? 3
-        : /Needs|Validation|NotValidated|NothingTo/.test(name)
+        : /Needs|Validation|NotApproved|NothingTo/.test(name)
           ? 4
           : name === "LlmError"
             ? 5
@@ -98,7 +99,7 @@ async function status() {
       prisma.job.count(),
       prisma.jobAnalysis.count(),
       prisma.tailoredResume.count(),
-      prisma.coverLetter.count(),
+      prisma.tailoredResume.count({ where: { status: "APPROVED" } }),
       prisma.applicationDecision.count(),
       prisma.nightlyRun.count(),
     ]),
@@ -108,13 +109,13 @@ async function status() {
       select: { id: true, title: true },
     }),
   ]);
-  const [jobs, analyses, tailored, covers, decisions, nightlyRuns] = counts;
+  const [jobs, analyses, tailored, approved, decisions, nightlyRuns] = counts;
   return {
     jobs: { total: jobs, visible: visible.total, sample: visible.data },
     artifacts: {
       analyses,
       tailored,
-      covers,
+      approved,
       decisions,
       nightlyRuns,
     },
@@ -174,16 +175,10 @@ async function main() {
       return print(command, { cached: false, tailored });
     }
 
-    case "validate": {
+    case "approve": {
       const jobId = idArg();
-      if (!refresh()) {
-        const existing = await getValidation(jobId);
-        if (existing.validatedAt) {
-          return print(command, { cached: true, ...existing });
-        }
-      }
-      const { status: verdict, result } = await validateTailored(jobId);
-      return print(command, { cached: false, status: verdict, result });
+      const draft = await approveTailoredResume(jobId);
+      return print(command, draft);
     }
 
     case "pdf": {
@@ -196,16 +191,6 @@ async function main() {
       }
       const rendered = await renderPdf(jobId);
       return print(command, { cached: false, ...rendered });
-    }
-
-    case "cover": {
-      const jobId = idArg();
-      if (!refresh()) {
-        const existing = await getCoverLetter(jobId);
-        if (existing) return print(command, { cached: true, cover: existing });
-      }
-      const { cover } = await generateCoverLetter(jobId);
-      return print(command, { cached: false, cover });
     }
 
     case "decision": {
@@ -280,9 +265,8 @@ async function main() {
           "jobs list|show",
           "analyze <id>",
           "tailor <id>",
-          "validate <id>",
+          "approve <id>",
           "pdf <id>",
-          "cover <id>",
           "decision <id> --status <status>",
           "ingest",
           "nightly",

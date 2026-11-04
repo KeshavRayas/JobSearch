@@ -40,8 +40,7 @@ export type TailoredResumeMinAggregateOutputType = {
   version: number | null
   isCurrent: boolean | null
   baseResumeId: string | null
-  validationStatus: $Enums.TailorValidationStatus | null
-  validatedAt: Date | null
+  status: $Enums.TailorStatus | null
   renderStatus: $Enums.RenderStatus | null
   renderedAt: Date | null
   pdfPath: string | null
@@ -57,8 +56,7 @@ export type TailoredResumeMaxAggregateOutputType = {
   version: number | null
   isCurrent: boolean | null
   baseResumeId: string | null
-  validationStatus: $Enums.TailorValidationStatus | null
-  validatedAt: Date | null
+  status: $Enums.TailorStatus | null
   renderStatus: $Enums.RenderStatus | null
   renderedAt: Date | null
   pdfPath: string | null
@@ -76,9 +74,8 @@ export type TailoredResumeCountAggregateOutputType = {
   baseResumeId: number
   content: number
   evidenceIds: number
-  validationStatus: number
-  validationResult: number
-  validatedAt: number
+  status: number
+  warnings: number
   renderStatus: number
   renderedAt: number
   pdfPath: number
@@ -106,8 +103,7 @@ export type TailoredResumeMinAggregateInputType = {
   version?: true
   isCurrent?: true
   baseResumeId?: true
-  validationStatus?: true
-  validatedAt?: true
+  status?: true
   renderStatus?: true
   renderedAt?: true
   pdfPath?: true
@@ -123,8 +119,7 @@ export type TailoredResumeMaxAggregateInputType = {
   version?: true
   isCurrent?: true
   baseResumeId?: true
-  validationStatus?: true
-  validatedAt?: true
+  status?: true
   renderStatus?: true
   renderedAt?: true
   pdfPath?: true
@@ -142,9 +137,8 @@ export type TailoredResumeCountAggregateInputType = {
   baseResumeId?: true
   content?: true
   evidenceIds?: true
-  validationStatus?: true
-  validationResult?: true
-  validatedAt?: true
+  status?: true
+  warnings?: true
   renderStatus?: true
   renderedAt?: true
   pdfPath?: true
@@ -251,9 +245,8 @@ export type TailoredResumeGroupByOutputType = {
   baseResumeId: string
   content: runtime.JsonValue
   evidenceIds: string[]
-  validationStatus: $Enums.TailorValidationStatus
-  validationResult: runtime.JsonValue | null
-  validatedAt: Date | null
+  status: $Enums.TailorStatus
+  warnings: string[]
   renderStatus: $Enums.RenderStatus
   renderedAt: Date | null
   pdfPath: string | null
@@ -296,9 +289,8 @@ export type TailoredResumeWhereInput = {
   baseResumeId?: Prisma.StringFilter<"TailoredResume"> | string
   content?: Prisma.JsonFilter<"TailoredResume">
   evidenceIds?: Prisma.StringNullableListFilter<"TailoredResume">
-  validationStatus?: Prisma.EnumTailorValidationStatusFilter<"TailoredResume"> | $Enums.TailorValidationStatus
-  validationResult?: Prisma.JsonNullableFilter<"TailoredResume">
-  validatedAt?: Prisma.DateTimeNullableFilter<"TailoredResume"> | Date | string | null
+  status?: Prisma.EnumTailorStatusFilter<"TailoredResume"> | $Enums.TailorStatus
+  warnings?: Prisma.StringNullableListFilter<"TailoredResume">
   renderStatus?: Prisma.EnumRenderStatusFilter<"TailoredResume"> | $Enums.RenderStatus
   renderedAt?: Prisma.DateTimeNullableFilter<"TailoredResume"> | Date | string | null
   pdfPath?: Prisma.StringNullableFilter<"TailoredResume"> | string | null
@@ -319,9 +311,8 @@ export type TailoredResumeOrderByWithRelationInput = {
   baseResumeId?: Prisma.SortOrder
   content?: Prisma.SortOrder
   evidenceIds?: Prisma.SortOrder
-  validationStatus?: Prisma.SortOrder
-  validationResult?: Prisma.SortOrderInput | Prisma.SortOrder
-  validatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  status?: Prisma.SortOrder
+  warnings?: Prisma.SortOrder
   renderStatus?: Prisma.SortOrder
   renderedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   pdfPath?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -346,9 +337,8 @@ export type TailoredResumeWhereUniqueInput = Prisma.AtLeast<{
   baseResumeId?: Prisma.StringFilter<"TailoredResume"> | string
   content?: Prisma.JsonFilter<"TailoredResume">
   evidenceIds?: Prisma.StringNullableListFilter<"TailoredResume">
-  validationStatus?: Prisma.EnumTailorValidationStatusFilter<"TailoredResume"> | $Enums.TailorValidationStatus
-  validationResult?: Prisma.JsonNullableFilter<"TailoredResume">
-  validatedAt?: Prisma.DateTimeNullableFilter<"TailoredResume"> | Date | string | null
+  status?: Prisma.EnumTailorStatusFilter<"TailoredResume"> | $Enums.TailorStatus
+  warnings?: Prisma.StringNullableListFilter<"TailoredResume">
   renderStatus?: Prisma.EnumRenderStatusFilter<"TailoredResume"> | $Enums.RenderStatus
   renderedAt?: Prisma.DateTimeNullableFilter<"TailoredResume"> | Date | string | null
   pdfPath?: Prisma.StringNullableFilter<"TailoredResume"> | string | null
@@ -369,9 +359,8 @@ export type TailoredResumeOrderByWithAggregationInput = {
   baseResumeId?: Prisma.SortOrder
   content?: Prisma.SortOrder
   evidenceIds?: Prisma.SortOrder
-  validationStatus?: Prisma.SortOrder
-  validationResult?: Prisma.SortOrderInput | Prisma.SortOrder
-  validatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  status?: Prisma.SortOrder
+  warnings?: Prisma.SortOrder
   renderStatus?: Prisma.SortOrder
   renderedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   pdfPath?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -399,9 +388,8 @@ export type TailoredResumeScalarWhereWithAggregatesInput = {
   baseResumeId?: Prisma.StringWithAggregatesFilter<"TailoredResume"> | string
   content?: Prisma.JsonWithAggregatesFilter<"TailoredResume">
   evidenceIds?: Prisma.StringNullableListFilter<"TailoredResume">
-  validationStatus?: Prisma.EnumTailorValidationStatusWithAggregatesFilter<"TailoredResume"> | $Enums.TailorValidationStatus
-  validationResult?: Prisma.JsonNullableWithAggregatesFilter<"TailoredResume">
-  validatedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"TailoredResume"> | Date | string | null
+  status?: Prisma.EnumTailorStatusWithAggregatesFilter<"TailoredResume"> | $Enums.TailorStatus
+  warnings?: Prisma.StringNullableListFilter<"TailoredResume">
   renderStatus?: Prisma.EnumRenderStatusWithAggregatesFilter<"TailoredResume"> | $Enums.RenderStatus
   renderedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"TailoredResume"> | Date | string | null
   pdfPath?: Prisma.StringNullableWithAggregatesFilter<"TailoredResume"> | string | null
@@ -420,9 +408,8 @@ export type TailoredResumeCreateInput = {
   baseResumeId: string
   content: Prisma.JsonNullValueInput | runtime.InputJsonValue
   evidenceIds?: Prisma.TailoredResumeCreateevidenceIdsInput | string[]
-  validationStatus?: $Enums.TailorValidationStatus
-  validationResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  validatedAt?: Date | string | null
+  status?: $Enums.TailorStatus
+  warnings?: Prisma.TailoredResumeCreatewarningsInput | string[]
   renderStatus?: $Enums.RenderStatus
   renderedAt?: Date | string | null
   pdfPath?: string | null
@@ -443,9 +430,8 @@ export type TailoredResumeUncheckedCreateInput = {
   baseResumeId: string
   content: Prisma.JsonNullValueInput | runtime.InputJsonValue
   evidenceIds?: Prisma.TailoredResumeCreateevidenceIdsInput | string[]
-  validationStatus?: $Enums.TailorValidationStatus
-  validationResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  validatedAt?: Date | string | null
+  status?: $Enums.TailorStatus
+  warnings?: Prisma.TailoredResumeCreatewarningsInput | string[]
   renderStatus?: $Enums.RenderStatus
   renderedAt?: Date | string | null
   pdfPath?: string | null
@@ -464,9 +450,8 @@ export type TailoredResumeUpdateInput = {
   baseResumeId?: Prisma.StringFieldUpdateOperationsInput | string
   content?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   evidenceIds?: Prisma.TailoredResumeUpdateevidenceIdsInput | string[]
-  validationStatus?: Prisma.EnumTailorValidationStatusFieldUpdateOperationsInput | $Enums.TailorValidationStatus
-  validationResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  validatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumTailorStatusFieldUpdateOperationsInput | $Enums.TailorStatus
+  warnings?: Prisma.TailoredResumeUpdatewarningsInput | string[]
   renderStatus?: Prisma.EnumRenderStatusFieldUpdateOperationsInput | $Enums.RenderStatus
   renderedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   pdfPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -487,9 +472,8 @@ export type TailoredResumeUncheckedUpdateInput = {
   baseResumeId?: Prisma.StringFieldUpdateOperationsInput | string
   content?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   evidenceIds?: Prisma.TailoredResumeUpdateevidenceIdsInput | string[]
-  validationStatus?: Prisma.EnumTailorValidationStatusFieldUpdateOperationsInput | $Enums.TailorValidationStatus
-  validationResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  validatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumTailorStatusFieldUpdateOperationsInput | $Enums.TailorStatus
+  warnings?: Prisma.TailoredResumeUpdatewarningsInput | string[]
   renderStatus?: Prisma.EnumRenderStatusFieldUpdateOperationsInput | $Enums.RenderStatus
   renderedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   pdfPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -509,9 +493,8 @@ export type TailoredResumeCreateManyInput = {
   baseResumeId: string
   content: Prisma.JsonNullValueInput | runtime.InputJsonValue
   evidenceIds?: Prisma.TailoredResumeCreateevidenceIdsInput | string[]
-  validationStatus?: $Enums.TailorValidationStatus
-  validationResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  validatedAt?: Date | string | null
+  status?: $Enums.TailorStatus
+  warnings?: Prisma.TailoredResumeCreatewarningsInput | string[]
   renderStatus?: $Enums.RenderStatus
   renderedAt?: Date | string | null
   pdfPath?: string | null
@@ -530,9 +513,8 @@ export type TailoredResumeUpdateManyMutationInput = {
   baseResumeId?: Prisma.StringFieldUpdateOperationsInput | string
   content?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   evidenceIds?: Prisma.TailoredResumeUpdateevidenceIdsInput | string[]
-  validationStatus?: Prisma.EnumTailorValidationStatusFieldUpdateOperationsInput | $Enums.TailorValidationStatus
-  validationResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  validatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumTailorStatusFieldUpdateOperationsInput | $Enums.TailorStatus
+  warnings?: Prisma.TailoredResumeUpdatewarningsInput | string[]
   renderStatus?: Prisma.EnumRenderStatusFieldUpdateOperationsInput | $Enums.RenderStatus
   renderedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   pdfPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -552,9 +534,8 @@ export type TailoredResumeUncheckedUpdateManyInput = {
   baseResumeId?: Prisma.StringFieldUpdateOperationsInput | string
   content?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   evidenceIds?: Prisma.TailoredResumeUpdateevidenceIdsInput | string[]
-  validationStatus?: Prisma.EnumTailorValidationStatusFieldUpdateOperationsInput | $Enums.TailorValidationStatus
-  validationResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  validatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumTailorStatusFieldUpdateOperationsInput | $Enums.TailorStatus
+  warnings?: Prisma.TailoredResumeUpdatewarningsInput | string[]
   renderStatus?: Prisma.EnumRenderStatusFieldUpdateOperationsInput | $Enums.RenderStatus
   renderedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   pdfPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -589,9 +570,8 @@ export type TailoredResumeCountOrderByAggregateInput = {
   baseResumeId?: Prisma.SortOrder
   content?: Prisma.SortOrder
   evidenceIds?: Prisma.SortOrder
-  validationStatus?: Prisma.SortOrder
-  validationResult?: Prisma.SortOrder
-  validatedAt?: Prisma.SortOrder
+  status?: Prisma.SortOrder
+  warnings?: Prisma.SortOrder
   renderStatus?: Prisma.SortOrder
   renderedAt?: Prisma.SortOrder
   pdfPath?: Prisma.SortOrder
@@ -613,8 +593,7 @@ export type TailoredResumeMaxOrderByAggregateInput = {
   version?: Prisma.SortOrder
   isCurrent?: Prisma.SortOrder
   baseResumeId?: Prisma.SortOrder
-  validationStatus?: Prisma.SortOrder
-  validatedAt?: Prisma.SortOrder
+  status?: Prisma.SortOrder
   renderStatus?: Prisma.SortOrder
   renderedAt?: Prisma.SortOrder
   pdfPath?: Prisma.SortOrder
@@ -630,8 +609,7 @@ export type TailoredResumeMinOrderByAggregateInput = {
   version?: Prisma.SortOrder
   isCurrent?: Prisma.SortOrder
   baseResumeId?: Prisma.SortOrder
-  validationStatus?: Prisma.SortOrder
-  validatedAt?: Prisma.SortOrder
+  status?: Prisma.SortOrder
   renderStatus?: Prisma.SortOrder
   renderedAt?: Prisma.SortOrder
   pdfPath?: Prisma.SortOrder
@@ -691,13 +669,22 @@ export type TailoredResumeCreateevidenceIdsInput = {
   set: string[]
 }
 
+export type TailoredResumeCreatewarningsInput = {
+  set: string[]
+}
+
 export type TailoredResumeUpdateevidenceIdsInput = {
   set?: string[]
   push?: string | string[]
 }
 
-export type EnumTailorValidationStatusFieldUpdateOperationsInput = {
-  set?: $Enums.TailorValidationStatus
+export type EnumTailorStatusFieldUpdateOperationsInput = {
+  set?: $Enums.TailorStatus
+}
+
+export type TailoredResumeUpdatewarningsInput = {
+  set?: string[]
+  push?: string | string[]
 }
 
 export type EnumRenderStatusFieldUpdateOperationsInput = {
@@ -715,9 +702,8 @@ export type TailoredResumeCreateWithoutJobInput = {
   baseResumeId: string
   content: Prisma.JsonNullValueInput | runtime.InputJsonValue
   evidenceIds?: Prisma.TailoredResumeCreateevidenceIdsInput | string[]
-  validationStatus?: $Enums.TailorValidationStatus
-  validationResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  validatedAt?: Date | string | null
+  status?: $Enums.TailorStatus
+  warnings?: Prisma.TailoredResumeCreatewarningsInput | string[]
   renderStatus?: $Enums.RenderStatus
   renderedAt?: Date | string | null
   pdfPath?: string | null
@@ -736,9 +722,8 @@ export type TailoredResumeUncheckedCreateWithoutJobInput = {
   baseResumeId: string
   content: Prisma.JsonNullValueInput | runtime.InputJsonValue
   evidenceIds?: Prisma.TailoredResumeCreateevidenceIdsInput | string[]
-  validationStatus?: $Enums.TailorValidationStatus
-  validationResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  validatedAt?: Date | string | null
+  status?: $Enums.TailorStatus
+  warnings?: Prisma.TailoredResumeCreatewarningsInput | string[]
   renderStatus?: $Enums.RenderStatus
   renderedAt?: Date | string | null
   pdfPath?: string | null
@@ -787,9 +772,8 @@ export type TailoredResumeScalarWhereInput = {
   baseResumeId?: Prisma.StringFilter<"TailoredResume"> | string
   content?: Prisma.JsonFilter<"TailoredResume">
   evidenceIds?: Prisma.StringNullableListFilter<"TailoredResume">
-  validationStatus?: Prisma.EnumTailorValidationStatusFilter<"TailoredResume"> | $Enums.TailorValidationStatus
-  validationResult?: Prisma.JsonNullableFilter<"TailoredResume">
-  validatedAt?: Prisma.DateTimeNullableFilter<"TailoredResume"> | Date | string | null
+  status?: Prisma.EnumTailorStatusFilter<"TailoredResume"> | $Enums.TailorStatus
+  warnings?: Prisma.StringNullableListFilter<"TailoredResume">
   renderStatus?: Prisma.EnumRenderStatusFilter<"TailoredResume"> | $Enums.RenderStatus
   renderedAt?: Prisma.DateTimeNullableFilter<"TailoredResume"> | Date | string | null
   pdfPath?: Prisma.StringNullableFilter<"TailoredResume"> | string | null
@@ -808,9 +792,8 @@ export type TailoredResumeCreateManyJobInput = {
   baseResumeId: string
   content: Prisma.JsonNullValueInput | runtime.InputJsonValue
   evidenceIds?: Prisma.TailoredResumeCreateevidenceIdsInput | string[]
-  validationStatus?: $Enums.TailorValidationStatus
-  validationResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  validatedAt?: Date | string | null
+  status?: $Enums.TailorStatus
+  warnings?: Prisma.TailoredResumeCreatewarningsInput | string[]
   renderStatus?: $Enums.RenderStatus
   renderedAt?: Date | string | null
   pdfPath?: string | null
@@ -829,9 +812,8 @@ export type TailoredResumeUpdateWithoutJobInput = {
   baseResumeId?: Prisma.StringFieldUpdateOperationsInput | string
   content?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   evidenceIds?: Prisma.TailoredResumeUpdateevidenceIdsInput | string[]
-  validationStatus?: Prisma.EnumTailorValidationStatusFieldUpdateOperationsInput | $Enums.TailorValidationStatus
-  validationResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  validatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumTailorStatusFieldUpdateOperationsInput | $Enums.TailorStatus
+  warnings?: Prisma.TailoredResumeUpdatewarningsInput | string[]
   renderStatus?: Prisma.EnumRenderStatusFieldUpdateOperationsInput | $Enums.RenderStatus
   renderedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   pdfPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -850,9 +832,8 @@ export type TailoredResumeUncheckedUpdateWithoutJobInput = {
   baseResumeId?: Prisma.StringFieldUpdateOperationsInput | string
   content?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   evidenceIds?: Prisma.TailoredResumeUpdateevidenceIdsInput | string[]
-  validationStatus?: Prisma.EnumTailorValidationStatusFieldUpdateOperationsInput | $Enums.TailorValidationStatus
-  validationResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  validatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumTailorStatusFieldUpdateOperationsInput | $Enums.TailorStatus
+  warnings?: Prisma.TailoredResumeUpdatewarningsInput | string[]
   renderStatus?: Prisma.EnumRenderStatusFieldUpdateOperationsInput | $Enums.RenderStatus
   renderedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   pdfPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -871,9 +852,8 @@ export type TailoredResumeUncheckedUpdateManyWithoutJobInput = {
   baseResumeId?: Prisma.StringFieldUpdateOperationsInput | string
   content?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   evidenceIds?: Prisma.TailoredResumeUpdateevidenceIdsInput | string[]
-  validationStatus?: Prisma.EnumTailorValidationStatusFieldUpdateOperationsInput | $Enums.TailorValidationStatus
-  validationResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  validatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumTailorStatusFieldUpdateOperationsInput | $Enums.TailorStatus
+  warnings?: Prisma.TailoredResumeUpdatewarningsInput | string[]
   renderStatus?: Prisma.EnumRenderStatusFieldUpdateOperationsInput | $Enums.RenderStatus
   renderedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   pdfPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -895,9 +875,8 @@ export type TailoredResumeSelect<ExtArgs extends runtime.Types.Extensions.Intern
   baseResumeId?: boolean
   content?: boolean
   evidenceIds?: boolean
-  validationStatus?: boolean
-  validationResult?: boolean
-  validatedAt?: boolean
+  status?: boolean
+  warnings?: boolean
   renderStatus?: boolean
   renderedAt?: boolean
   pdfPath?: boolean
@@ -918,9 +897,8 @@ export type TailoredResumeSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   baseResumeId?: boolean
   content?: boolean
   evidenceIds?: boolean
-  validationStatus?: boolean
-  validationResult?: boolean
-  validatedAt?: boolean
+  status?: boolean
+  warnings?: boolean
   renderStatus?: boolean
   renderedAt?: boolean
   pdfPath?: boolean
@@ -941,9 +919,8 @@ export type TailoredResumeSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   baseResumeId?: boolean
   content?: boolean
   evidenceIds?: boolean
-  validationStatus?: boolean
-  validationResult?: boolean
-  validatedAt?: boolean
+  status?: boolean
+  warnings?: boolean
   renderStatus?: boolean
   renderedAt?: boolean
   pdfPath?: boolean
@@ -964,9 +941,8 @@ export type TailoredResumeSelectScalar = {
   baseResumeId?: boolean
   content?: boolean
   evidenceIds?: boolean
-  validationStatus?: boolean
-  validationResult?: boolean
-  validatedAt?: boolean
+  status?: boolean
+  warnings?: boolean
   renderStatus?: boolean
   renderedAt?: boolean
   pdfPath?: boolean
@@ -978,7 +954,7 @@ export type TailoredResumeSelectScalar = {
   updatedAt?: boolean
 }
 
-export type TailoredResumeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "jobId" | "version" | "isCurrent" | "baseResumeId" | "content" | "evidenceIds" | "validationStatus" | "validationResult" | "validatedAt" | "renderStatus" | "renderedAt" | "pdfPath" | "atsStatus" | "atsResult" | "atsCheckedAt" | "rawJson" | "createdAt" | "updatedAt", ExtArgs["result"]["tailoredResume"]>
+export type TailoredResumeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "jobId" | "version" | "isCurrent" | "baseResumeId" | "content" | "evidenceIds" | "status" | "warnings" | "renderStatus" | "renderedAt" | "pdfPath" | "atsStatus" | "atsResult" | "atsCheckedAt" | "rawJson" | "createdAt" | "updatedAt", ExtArgs["result"]["tailoredResume"]>
 export type TailoredResumeInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   job?: boolean | Prisma.JobDefaultArgs<ExtArgs>
 }
@@ -1002,9 +978,8 @@ export type $TailoredResumePayload<ExtArgs extends runtime.Types.Extensions.Inte
     baseResumeId: string
     content: runtime.JsonValue
     evidenceIds: string[]
-    validationStatus: $Enums.TailorValidationStatus
-    validationResult: runtime.JsonValue | null
-    validatedAt: Date | null
+    status: $Enums.TailorStatus
+    warnings: string[]
     renderStatus: $Enums.RenderStatus
     renderedAt: Date | null
     pdfPath: string | null
@@ -1445,9 +1420,8 @@ export interface TailoredResumeFieldRefs {
   readonly baseResumeId: Prisma.FieldRef<"TailoredResume", 'String'>
   readonly content: Prisma.FieldRef<"TailoredResume", 'Json'>
   readonly evidenceIds: Prisma.FieldRef<"TailoredResume", 'String[]'>
-  readonly validationStatus: Prisma.FieldRef<"TailoredResume", 'TailorValidationStatus'>
-  readonly validationResult: Prisma.FieldRef<"TailoredResume", 'Json'>
-  readonly validatedAt: Prisma.FieldRef<"TailoredResume", 'DateTime'>
+  readonly status: Prisma.FieldRef<"TailoredResume", 'TailorStatus'>
+  readonly warnings: Prisma.FieldRef<"TailoredResume", 'String[]'>
   readonly renderStatus: Prisma.FieldRef<"TailoredResume", 'RenderStatus'>
   readonly renderedAt: Prisma.FieldRef<"TailoredResume", 'DateTime'>
   readonly pdfPath: Prisma.FieldRef<"TailoredResume", 'String'>

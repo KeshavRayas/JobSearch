@@ -3,7 +3,7 @@ import {
   renderPdf,
   getPdfState,
   NothingToRenderError,
-  NotValidatedError,
+  NotApprovedError,
 } from "@/lib/pdf/service";
 import { RenderError } from "@/lib/pdf/compile";
 
@@ -53,7 +53,7 @@ export async function POST(req: Request, ctx: { params: Params }) {
     if (err instanceof NothingToRenderError) {
       return Response.json({ error: err.message }, { status: 404 });
     }
-    if (err instanceof NotValidatedError) {
+    if (err instanceof NotApprovedError) {
       return Response.json({ error: err.message }, { status: 422 });
     }
     if (err instanceof RenderError) {

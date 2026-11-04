@@ -91,5 +91,5 @@ uncertain > ineligible), never exact floats.
 - `CRON_SECRET` - when set, `/api/cron/*` require the Vercel-sent bearer
   token (401 otherwise). Set it on Vercel; leave unset for local dev.
 - `LLM_PROVIDER=cloud` + `LLM_API_KEY` + `LLM_MODEL` (+ optional
-  `LLM_BASE_URL`) - run the five LLM flows against a hosted endpoint
+  `LLM_BASE_URL`) - run the analyze/tailor flows against a hosted endpoint
   instead of the local OpenCode CLI. Every call logs model + token usage.

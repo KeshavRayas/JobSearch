@@ -1,25 +1,25 @@
 # Database schema
 
 Single-user database. No `User`, `Session`, or `Account` tables — there is no
-auth layer. Thirteen models, grouped by responsibility.
+auth layer. Twelve models, grouped by responsibility.
 
 ## Enums
 
-| Enum                     | Values                                                                   |
-| ------------------------ | ------------------------------------------------------------------------ |
-| `JobSource`              | ADZUNA, JOOBLE, REMOTIVE, GREENHOUSE, LEVER, ASHBY, WORKDAY, MANUAL      |
-| `CompanyType`            | STARTUP, MNC                                                             |
-| `ExperienceLevel`        | ENTRY, MID, SENIOR, LEAD                                                 |
-| `JobType`                | FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP                               |
-| `WorkMode`               | REMOTE, HYBRID, ONSITE                                                   |
-| `JobStatus`              | ACTIVE, REJECTED                                                         |
-| `RejectionReason`        | NON_CS, NON_ENTRY_LEVEL, UNKNOWN_EXPERIENCE, INVALID_LOCATION, DUPLICATE |
-| `SalaryFit`              | MATCH, BELOW, UNKNOWN                                                    |
-| `AnalysisVerdict`        | STRONG, POSSIBLE, WEAK                                                   |
-| `DecisionStatus`         | QUEUED, OPENED, APPLIED, SAVED, SKIPPED                                  |
-| `TailorValidationStatus` | STRUCTURAL_VALID, SEMANTIC_VALID, SEMANTIC_INVALID                       |
-| `RenderStatus`           | PENDING, SUCCESS, FAILED                                                 |
-| `AtsStatus`              | PENDING, CHECKED                                                         |
+| Enum              | Values                                                                   |
+| ----------------- | ------------------------------------------------------------------------ |
+| `JobSource`       | ADZUNA, JOOBLE, REMOTIVE, GREENHOUSE, LEVER, ASHBY, WORKDAY, MANUAL      |
+| `CompanyType`     | STARTUP, MNC                                                             |
+| `ExperienceLevel` | ENTRY, MID, SENIOR, LEAD                                                 |
+| `JobType`         | FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP                               |
+| `WorkMode`        | REMOTE, HYBRID, ONSITE                                                   |
+| `JobStatus`       | ACTIVE, REJECTED                                                         |
+| `RejectionReason` | NON_CS, NON_ENTRY_LEVEL, UNKNOWN_EXPERIENCE, INVALID_LOCATION, DUPLICATE |
+| `SalaryFit`       | MATCH, BELOW, UNKNOWN                                                    |
+| `AnalysisVerdict` | STRONG, POSSIBLE, WEAK                                                   |
+| `DecisionStatus`  | QUEUED, OPENED, APPLIED, SAVED, SKIPPED                                  |
+| `TailorStatus`    | DRAFT, APPROVED                                                          |
+| `RenderStatus`    | PENDING, SUCCESS, FAILED                                                 |
+| `AtsStatus`       | PENDING, CHECKED                                                         |
 
 ## Core domain
 
@@ -35,7 +35,7 @@ updates instead of duplicating. Key fields: `title`, `description`, `applyUrl`,
 `location`, `workMode`, `salaryMin/Max`, `jobType`, `experience`, `skills[]`,
 `postedAt`, `scrapedAt`, `status`, `classificationScore`, `rejectionReason`,
 `sourceScore`, and `searchVector` (full-text). Relations: one company, optional
-match/analysis/decision/cover letter, many tailored resumes.
+match/analysis/decision, many tailored resumes.
 
 ### SearchEvent
 
@@ -96,15 +96,10 @@ work authorization/mode, verdict (`STRONG|POSSIBLE|WEAK`), verdict reasons.
 ### TailoredResume
 
 Versioned, `isCurrent` pointer, unique on `@@unique([jobId, version])`. Stores
-the evidence-bearing content and the two-stage validation state:
-`validationStatus`, `validationResult`, `validatedAt`; then render state:
-`renderStatus`, `renderedAt`, `pdfPath`, `atsStatus`, `atsResult`,
-`atsCheckedAt`.
-
-### CoverLetter
-
-Unique per job. `content` is the validated letter, `evidenceIds[]` must resolve
-against the base resume, `rawJson` for audit.
+the evidence-bearing content, `status` (`DRAFT|APPROVED`), `warnings[]` from
+provenance checks, then render state: `renderStatus`, `renderedAt`, `pdfPath`,
+`atsStatus`, `atsResult`, `atsCheckedAt`. Editing a draft reopens it; approving
+locks it for PDF rendering.
 
 ## Observability
 

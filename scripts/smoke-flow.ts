@@ -2,16 +2,18 @@ import "dotenv/config";
 import { prisma } from "@/lib/prisma";
 import { searchJobs } from "@/lib/repositories/jobs.repository";
 import { analyzeJob, getAnalysis } from "@/lib/analysis/service";
-import { getTailoredResume, tailorResume } from "@/lib/tailor/service";
-import { getValidation, validateTailored } from "@/lib/tailor/validateSemantic";
+import {
+  getTailoredResume,
+  tailorResume,
+  approveTailoredResume,
+} from "@/lib/tailor/service";
 import { getPdfState, renderPdf } from "@/lib/pdf/service";
-import { generateCoverLetter, getCoverLetter } from "@/lib/cover/service";
 
 // ─── Full-flow smoke test ────────────────────────────────────────────────────
 // bun run smoke:flow [jobId] [--refresh]
-// Runs analyze -> tailor -> validate -> PDF -> cover on a real job and prints
-// one JSON summary. Spends model calls; stops at the first failed gate.
-// Without a jobId, picks the newest visible job.
+// Runs analyze -> tailor -> approve -> PDF on a real job and prints one JSON
+// summary. Spends model calls; stops at the first failed gate. Without a
+// jobId, picks the newest visible job.
 
 let currentStep = "start";
 let selectedJobId: string | undefined;
@@ -46,32 +48,11 @@ async function main() {
       : (await tailorResume(jobId)).tailored;
   steps.push({ step: "tailor", ok: true, detail: tailored });
 
-  currentStep = "validate";
-  const cachedValidation = refresh
-    ? null
-    : await getValidation(jobId).catch(() => null);
-  const validation = cachedValidation?.validatedAt
-    ? cachedValidation
-    : await validateTailored(jobId);
-  steps.push({ step: "validate", ok: true, detail: validation });
-
-  if (validation.status !== "SEMANTIC_VALID") {
-    console.log(
-      JSON.stringify(
-        {
-          ok: false,
-          jobId,
-          ms: Date.now() - started,
-          stoppedAt: "validate",
-          steps,
-        },
-        null,
-        2,
-      ),
-    );
-    process.exitCode = 1;
-    return;
-  }
+  currentStep = "approve";
+  const draft = await getTailoredResume(jobId);
+  const approved =
+    draft?.status === "APPROVED" ? draft : await approveTailoredResume(jobId);
+  steps.push({ step: "approve", ok: true, detail: approved });
 
   currentStep = "pdf";
   const pdf =
@@ -80,13 +61,6 @@ async function main() {
       ? await getPdfState(jobId)
       : await renderPdf(jobId);
   steps.push({ step: "pdf", ok: true, detail: pdf });
-
-  currentStep = "cover";
-  const cover =
-    !refresh && (await getCoverLetter(jobId))
-      ? await getCoverLetter(jobId)
-      : (await generateCoverLetter(jobId)).cover;
-  steps.push({ step: "cover", ok: true, detail: cover });
 
   console.log(
     JSON.stringify(

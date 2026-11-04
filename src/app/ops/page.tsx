@@ -31,7 +31,7 @@ export default async function OpsPage() {
     resumes,
     analyses,
     tailored,
-    covers,
+    approved,
     decisions,
     syncs,
     runs,
@@ -43,7 +43,7 @@ export default async function OpsPage() {
     prisma.resume.count(),
     prisma.jobAnalysis.count(),
     prisma.tailoredResume.count(),
-    prisma.coverLetter.count(),
+    prisma.tailoredResume.count({ where: { status: "APPROVED" } }),
     prisma.applicationDecision.count(),
     prisma.sourceSync.findMany({
       orderBy: { startedAt: "desc" },
@@ -171,7 +171,7 @@ export default async function OpsPage() {
             {[
               ["Analyses", analyses],
               ["Tailored", tailored],
-              ["Cover letters", covers],
+              ["Approved", approved],
               ["Decisions", decisions],
             ].map(([label, value]) => (
               <div key={String(label)}>

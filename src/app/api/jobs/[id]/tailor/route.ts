@@ -2,9 +2,12 @@ import { prisma } from "@/lib/prisma";
 import {
   tailorResume,
   getTailoredResume,
+  saveTailoredDraft,
   NeedsAnalysisError,
   EmptyResumeError,
   TailorValidationError,
+  DraftValidationError,
+  NothingToEditError,
 } from "@/lib/tailor/service";
 import { LlmError } from "@/lib/llm/types";
 import { resolveProvider, usageOf, MissingModelError } from "@/lib/llm/userKey";
@@ -24,6 +27,28 @@ export async function GET(_req: Request, ctx: { params: Params }) {
     return Response.json({ error: "No tailored resume yet" }, { status: 404 });
   }
   return Response.json({ ...tailored, cached: true });
+}
+
+export async function PUT(req: Request, ctx: { params: Params }) {
+  const { id } = await ctx.params;
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "invalid JSON body" }, { status: 400 });
+  }
+  try {
+    const draft = await saveTailoredDraft(id, body);
+    return Response.json(draft);
+  } catch (err) {
+    if (err instanceof NothingToEditError) {
+      return Response.json({ error: err.message }, { status: 404 });
+    }
+    if (err instanceof DraftValidationError) {
+      return Response.json({ error: err.message }, { status: 422 });
+    }
+    return Response.json({ error: String(err) }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request, ctx: { params: Params }) {
