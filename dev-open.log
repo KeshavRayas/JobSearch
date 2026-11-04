@@ -1,7 +1,0 @@
-$ next dev --port "3101" --hostname "127.0.0.1"
-▲ Next.js 16.2.9 (Turbopack)
-- Local:         http://127.0.0.1:3101
-- Network:       http://127.0.0.1:3101
-- Environments: .env
-✓ Ready in 463ms
-
