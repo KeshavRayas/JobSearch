@@ -37,8 +37,9 @@ This file is the entry point for agents. Read it before changing code or data.
    validates with Zod and upserts idempotently.
 5. **All page queries go through `src/lib/repositories/`.**
 6. **UI is locked to Calm Focus.** See `DESIGN_CALM_FOCUS.md`.
-7. **Never expose secrets.** `.env` is gitignored; BYOK keys stay in browser
-   localStorage; logs mask keys.
+7. **Never expose secrets.** `.env` is gitignored; provider API keys are entered
+   only in Settings → AI providers and stay in browser localStorage. The job
+   modal only selects a saved connection/model.
 
 ## Quick commands
 
@@ -96,6 +97,7 @@ All routes are unauthenticated and local-only.
 | -------- | ---------------------------- | ------------------------------------------------------------- |
 | GET      | `/api/jobs`                  | search/filter (`q`, `location`, `workMode`, `skills`, `page`) |
 | GET      | `/api/jobs/:id`              | one job                                                       |
+| GET      | `/api/jobs/:id/state`        | all panel artifacts in one request                            |
 | GET/POST | `/api/jobs/:id/analyze`      | cached / run analysis                                         |
 | GET/POST | `/api/jobs/:id/tailor`       | cached / run tailoring                                        |
 | GET/POST | `/api/jobs/:id/validate`     | cached / semantic validation                                  |
@@ -176,6 +178,7 @@ Key files: `src/lib/{sources,ingestion,matching,analysis,tailor,cover,interview,
 DATABASE_URL=postgres...          # required
 LLM_PROVIDER=cloud                # optional; otherwise OpenCode CLI
 LLM_API_KEY / LLM_MODEL / LLM_BASE_URL
+LLM_API_MODE=chat|responses        # responses for OpenCode Muse models
 OPENCODE_MODEL=google/gemini-3.5-flash   # pin the local CLI model
 OPENCODE_BIN / OPENCODE_AGENT
 CRON_SECRET                       # optional; protects cron routes
@@ -185,7 +188,10 @@ RESEND_API_KEY / DIGEST_TO_EMAIL / DIGEST_FROM_EMAIL
 ```
 
 `bun run check:env` is authoritative. The OpenCode CLI’s global model may point
-at an expired credential; pinning `OPENCODE_MODEL` is intentional.
+at an expired credential; pinning `OPENCODE_MODEL` is intentional. OpenCode Go
+Muse Spark models use the Responses API: base URL
+`https://opencode.ai/inference/go/openai/v1`, mode `responses`, model
+`muse-spark-1.3-contributor`.
 
 ## Local deployment status
 

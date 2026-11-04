@@ -22,6 +22,7 @@ commands; do not trust this file over current output.
 | Integration | `bun run test:integration`          | 17 passed / 2 files        |
 | E2E         | `bun run test:e2e`                  | 16 passed                  |
 | Build       | `bun run build`                     | pass, all routes           |
+| Muse Spark  | `smoke:flow --refresh` (Responses)  | full loop, 255s            |
 | Prod health | `bun run start` + `GET /api/health` | 200, `ok:true`             |
 | Nightly     | `bun run agent -- nightly`          | 45 candidates, 25 matched  |
 | Setup       | `bun run setup`                     | migrations + seed + report |
@@ -42,6 +43,18 @@ download  → GET /api/jobs/:id/pdf/download → 200 application/pdf (32,590 byt
 
 Total flow time with the CLI provider: 164.9s. Reproduce with
 `bun run smoke:flow`.
+
+## Muse Spark 1.3 Contributor (2026-11-04)
+
+Verified through OpenCode Go's **Responses API**, not chat completions:
+
+- endpoint `https://opencode.ai/inference/go/openai/v1/responses`
+- model `muse-spark-1.3-contributor`
+- required headers: bearer key + `x-opencode-session`
+- full flow: analyze → tailor → SEMANTIC_VALID → PDF
+  `storage/pdfs/o1gMoCevGRZR5d0EMyXUE_v2.pdf` → cover → interview, 255s
+- the Settings preset now stores `api: "responses"`; the BYOK test route
+  returned 200 with `source: user` for this exact configuration.
 
 The previous verification job (`VOJ3381CG_ApHYoXMMFUX`) was removed by the
 nightly stale-job cleanup, which correctly cascaded its tailored resume, PDF

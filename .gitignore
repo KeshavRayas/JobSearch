@@ -44,3 +44,6 @@ next-env.d.ts
 
 # derived artifacts (regenerable from Postgres)
 storage/
+
+# local logs
+*.log

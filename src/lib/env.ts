@@ -19,6 +19,7 @@ export const envSchema = z.object({
   LLM_API_KEY: optionalString,
   LLM_MODEL: optionalString,
   LLM_BASE_URL: z.string().url().optional(),
+  LLM_API_MODE: z.enum(["chat", "responses"]).optional(),
   LLM_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
 
   // Local OpenCode CLI overrides

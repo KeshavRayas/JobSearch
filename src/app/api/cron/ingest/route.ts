@@ -1,3 +1,4 @@
+import { revalidateTag } from "next/cache";
 import { runIngestionPipeline } from "@/lib/ingestion/pipeline";
 import { cronAuthError } from "@/lib/jobs/cron";
 
@@ -8,6 +9,7 @@ export async function GET(req: Request) {
   if (denied) return denied;
   try {
     await runIngestionPipeline();
+    revalidateTag("jobs", "max");
     return Response.json({ success: true });
   } catch (err) {
     return Response.json(

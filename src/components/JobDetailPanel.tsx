@@ -1,25 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  X,
-  ArrowUpRight,
-  Briefcase,
-  FileText,
-  Sparkles,
-  KeyRound,
-} from "lucide-react";
+import Link from "next/link";
+import { X, ArrowUpRight, Briefcase, FileText, Sparkles } from "lucide-react";
 import type { JobSearchResult } from "@/lib/types";
 import { formatDaysAgo, formatSalary, enumLabel } from "@/lib/utils";
 import {
-  loadLlmSettings,
-  saveLlmSettings,
-  clearLlmSettings,
+  activeConnection,
+  loadLlmStore,
+  saveLlmStore,
+  subscribeLlmStore,
   llmHeaders,
-  maskKey,
-  LLM_PRESETS,
-  type LlmSettings,
+  type LlmStore,
 } from "@/lib/llm/client";
 import { formatUsage } from "@/lib/llm/byok";
 
@@ -165,11 +157,15 @@ const CHANGE_STYLES: Record<TailoredItemView["provenance"]["change"], string> =
     COMBINE: "border-black/30 text-black",
   };
 
-export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const selectedId = searchParams.get("selected");
-
+export function JobDetailPanel({
+  jobs,
+  selectedId,
+  onClose,
+}: {
+  jobs: JobSearchResult[];
+  selectedId: string;
+  onClose: () => void;
+}) {
   const job = useMemo(
     () => jobs.find((j) => j.id === selectedId) ?? null,
     [jobs, selectedId],
@@ -210,18 +206,17 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
   } | null>(null);
   const [checkingLive, setCheckingLive] = useState(false);
 
-  // ─── BYOK key state (Phase 5A) ───────────────────────────────────────────
-  // Lazy initializer (never an effect): first client render must match SSR.
-  const [llmSettings, setLlmSettings] = useState<LlmSettings | null>(() =>
-    loadLlmSettings(),
-  );
-  const [editingKey, setEditingKey] = useState(false);
-  const [keyPresetId, setKeyPresetId] = useState(LLM_PRESETS[0].id);
-  const [keyBaseUrl, setKeyBaseUrl] = useState(LLM_PRESETS[0].baseUrl);
-  const [keyModel, setKeyModel] = useState("");
-  const [keyValue, setKeyValue] = useState("");
-  const [testingKey, setTestingKey] = useState(false);
-  const [keyError, setKeyError] = useState<string | null>(null);
+  // ─── AI provider selection (keys live in Settings) ──────────────────────
+  const [llmStore, setLlmStore] = useState<LlmStore>({
+    connections: [],
+    activeId: null,
+  });
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is client-only; this syncs the store after hydration
+    setLlmStore(loadLlmStore());
+    return subscribeLlmStore(() => setLlmStore(loadLlmStore()));
+  }, []);
+  const activeLlm = activeConnection(llmStore);
 
   // ─── Long-call timer + cancel (Phase 5A) ─────────────────────────────────
   // One in-flight model call at a time in practice; tracked by endpoint so
@@ -288,35 +283,25 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
     setCallTimer(null);
     if (!selectedId) return;
     let cancelled = false;
-    fetch(`/api/jobs/${selectedId}/analyze`)
+    // One request returns every persisted artifact for this job. Previously
+    // the panel made five separate HTTP calls (analyze, tailor, decision,
+    // cover, interview), each paying its own Neon round trip.
+    fetch(`/api/jobs/${selectedId}/state`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!cancelled && data) setAnalysis(data);
-      })
-      .catch(() => {});
-    fetch(`/api/jobs/${selectedId}/tailor`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!cancelled && data?.sections) setTailored(data);
-      })
-      .catch(() => {});
-    fetch(`/api/jobs/${selectedId}/decision`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!cancelled && data?.status && data.status !== "QUEUED")
-          setDecision(data.status);
-      })
-      .catch(() => {});
-    fetch(`/api/jobs/${selectedId}/cover`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!cancelled && data?.content) setCover(data);
-      })
-      .catch(() => {});
-    fetch(`/api/jobs/${selectedId}/interview`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!cancelled && data?.content) setPrep(data);
+        if (cancelled || !data) return;
+        setAnalysis(data.analysis ?? null);
+        if (data.tailored?.sections) {
+          setTailored({
+            ...data.tailored,
+            versionCount: data.versionCount ?? 1,
+          });
+        }
+        if (data.decision?.status && data.decision.status !== "QUEUED") {
+          setDecision(data.decision.status);
+        }
+        if (data.cover?.content) setCover(data.cover);
+        if (data.interview?.content) setPrep(data.interview);
       })
       .catch(() => {});
     return () => {
@@ -346,7 +331,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
         `/api/jobs/${selectedId}${endpoint}${refresh ? "?refresh=1" : ""}`,
         {
           method: "POST",
-          headers: llmHeaders(loadLlmSettings()),
+          headers: llmHeaders(activeLlm),
           signal: controller.signal,
         },
       );
@@ -375,59 +360,6 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
         Cancel
       </button>
     );
-  }
-
-  async function testAndSaveKey() {
-    const key = keyValue.trim();
-    const model = keyModel.trim();
-    if (!key || !model) {
-      setKeyError("Key and model are both required.");
-      return;
-    }
-    const baseUrl =
-      keyBaseUrl.trim() ||
-      LLM_PRESETS.find((p) => p.id === keyPresetId)?.baseUrl ||
-      "";
-    const label =
-      LLM_PRESETS.find((p) => p.id === keyPresetId)?.label ?? "Custom";
-    setTestingKey(true);
-    setKeyError(null);
-    try {
-      const res = await fetch("/api/llm/test", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-llm-key": key,
-          "x-llm-model": model,
-          ...(baseUrl ? { "x-llm-base-url": baseUrl } : {}),
-          "x-llm-label": label,
-        },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Key check failed");
-      const settings: LlmSettings = {
-        presetId: keyPresetId,
-        label,
-        baseUrl,
-        model,
-        key,
-      };
-      saveLlmSettings(settings);
-      setLlmSettings(settings);
-      setEditingKey(false);
-      setKeyValue("");
-      setKeyError(null);
-    } catch (err) {
-      setKeyError(err instanceof Error ? err.message : "Key check failed");
-    } finally {
-      setTestingKey(false);
-    }
-  }
-
-  function forgetKey() {
-    clearLlmSettings();
-    setLlmSettings(null);
-    setEditingKey(false);
   }
 
   function runAnalysis(refresh: boolean) {
@@ -465,7 +397,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
     try {
       const res = await fetch(`/api/jobs/${selectedId}/validate`, {
         method: "POST",
-        headers: llmHeaders(loadLlmSettings()),
+        headers: llmHeaders(activeLlm),
         signal: controller.signal,
       });
       const data = await res.json();
@@ -575,9 +507,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
   }
 
   function close() {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("selected");
-    router.push(`/?${params.toString()}`);
+    onClose();
   }
 
   if (!selectedId) return null;
@@ -785,114 +715,45 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                 <p className="text-body font-bold text-red">{analysisError}</p>
               )}
 
-              {/* BYOK key row — the key lives in this browser only */}
-              {llmSettings && !editingKey ? (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[12px] text-black/55 truncate">
-                    {llmSettings.label} · {llmSettings.model} ·{" "}
-                    {maskKey(llmSettings.key)}
-                  </span>
-                  <span className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => {
-                        setKeyPresetId(llmSettings.presetId);
-                        setKeyBaseUrl(llmSettings.baseUrl);
-                        setKeyModel(llmSettings.model);
-                        setKeyValue("");
-                        setKeyError(null);
-                        setEditingKey(true);
-                      }}
-                      className="text-[12px] text-black/50 underline underline-offset-4 hover:text-black transition-colors duration-300"
-                    >
-                      Change
-                    </button>
-                    <button
-                      onClick={forgetKey}
-                      className="text-[12px] text-black/50 underline underline-offset-4 hover:text-black transition-colors duration-300"
-                    >
-                      Forget
-                    </button>
-                  </span>
-                </div>
-              ) : (
-                <div className="p-3 border border-black/10 rounded-[12px] bg-white space-y-2">
-                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-black/45">
-                    <KeyRound className="w-3.5 h-3.5" />
-                    {llmSettings ? "Change AI key" : "Add your AI key"}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <select
-                      value={keyPresetId}
-                      onChange={(e) => {
-                        const preset = LLM_PRESETS.find(
-                          (p) => p.id === e.target.value,
-                        );
-                        setKeyPresetId(e.target.value);
-                        if (preset) setKeyBaseUrl(preset.baseUrl);
-                      }}
-                      className="bg-white border border-black/10 rounded-[12px] px-3 py-2 text-[13px] outline-none focus:border-black/30 transition-colors duration-300"
-                    >
-                      {LLM_PRESETS.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.label}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="text"
-                      value={keyModel}
-                      onChange={(e) => setKeyModel(e.target.value)}
-                      placeholder={
-                        LLM_PRESETS.find((p) => p.id === keyPresetId)
-                          ?.modelPlaceholder ?? "model id"
-                      }
-                      className="bg-white border border-black/10 rounded-[12px] px-3 py-2 text-[13px] outline-none focus:border-black/30 transition-colors duration-300 placeholder:text-black/35"
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    value={keyBaseUrl}
-                    onChange={(e) => setKeyBaseUrl(e.target.value)}
-                    placeholder="Base URL"
-                    className="w-full bg-white border border-black/10 rounded-[12px] px-3 py-2 text-[13px] outline-none focus:border-black/30 transition-colors duration-300 placeholder:text-black/35"
-                  />
-                  <input
-                    type="password"
-                    value={keyValue}
-                    onChange={(e) => setKeyValue(e.target.value)}
-                    placeholder="API key — stays in this browser"
-                    autoComplete="off"
-                    className="w-full bg-white border border-black/10 rounded-[12px] px-3 py-2 text-[13px] outline-none focus:border-black/30 transition-colors duration-300 placeholder:text-black/35"
-                  />
-                  {keyError && (
-                    <p className="text-[13px] font-bold text-red">{keyError}</p>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={testAndSaveKey}
-                      disabled={testingKey}
-                      className="bg-[#111] text-white rounded-full px-5 py-2 text-[13px] font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50"
-                    >
-                      {testingKey ? "Checking…" : "Test & save"}
-                    </button>
-                    {llmSettings && (
-                      <button
-                        onClick={() => {
-                          setEditingKey(false);
-                          setKeyError(null);
-                        }}
-                        className="text-[12px] text-black/50 underline underline-offset-4 hover:text-black transition-colors duration-300"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-black/45">
-                    Key travels per request, never stored or logged server-side.
-                    Without one, the shared default runs instead.
-                  </p>
-                </div>
-              )}
+              <div className="flex items-center justify-between gap-3">
+                <label
+                  htmlFor="job-ai-model"
+                  className="text-[11px] uppercase tracking-[0.12em] text-black/45"
+                >
+                  Model
+                </label>
+                <select
+                  id="job-ai-model"
+                  value={llmStore.activeId ?? ""}
+                  onChange={(e) => {
+                    const next = {
+                      ...llmStore,
+                      activeId: e.target.value || null,
+                    };
+                    saveLlmStore(next);
+                    setLlmStore(next);
+                  }}
+                  className="max-w-[62%] bg-white border border-black/10 rounded-[12px] px-3 py-2 text-[13px] outline-none focus:border-black/30"
+                >
+                  <option value="">Server default</option>
+                  {llmStore.connections.map((connection) => (
+                    <option key={connection.id} value={connection.id}>
+                      {connection.label} · {connection.model}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-[11px] text-black/45">
+                {activeLlm
+                  ? `Using ${activeLlm.label} · ${activeLlm.model}.`
+                  : "Using the server default provider."}{" "}
+                <Link
+                  href="/settings"
+                  className="underline underline-offset-4 hover:text-black"
+                >
+                  Manage keys in Settings
+                </Link>
+              </p>
 
               <button
                 onClick={() => runAnalysis(!!analysis)}
@@ -908,9 +769,9 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
               </button>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[12px] font-medium text-black/55">
-                  {llmSettings
-                    ? `Using your ${llmSettings.label} key · ${llmSettings.model}`
-                    : "Using shared default provider"}
+                  {activeLlm
+                    ? `Using ${activeLlm.label} · ${activeLlm.model}`
+                    : "Using the server default provider"}
                   {" — one call per job, result saved and reused."}
                 </p>
                 {cancelButton("/analyze", analyzing)}

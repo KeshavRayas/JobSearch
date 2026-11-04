@@ -26,12 +26,15 @@ export type CloudProviderOptions = {
   apiKey?: string;
   model?: string;
   baseUrl?: string;
+  /** "responses" for OpenAI Responses API models (e.g. OpenCode Muse). */
+  api?: "chat" | "responses";
 };
 
 function config(opts: CloudProviderOptions): {
   apiKey: string;
   model: string;
   baseUrl: string;
+  api: "chat" | "responses";
 } {
   const apiKey = opts.apiKey ?? process.env.LLM_API_KEY;
   const model = opts.model ?? process.env.LLM_MODEL;
@@ -48,6 +51,9 @@ function config(opts: CloudProviderOptions): {
       opts.baseUrl ??
       process.env.LLM_BASE_URL?.replace(/\/$/, "") ??
       DEFAULT_BASE_URL,
+    api:
+      opts.api ??
+      (process.env.LLM_API_MODE === "responses" ? "responses" : "chat"),
   };
 }
 
@@ -80,25 +86,51 @@ export class CloudJsonProvider implements LlmProvider {
     systemPrompt: string,
     userPrompt: string,
   ): Promise<unknown> {
-    const { apiKey, model, baseUrl } = config(this.opts);
+    const { apiKey, model, baseUrl, api } = config(this.opts);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs());
     try {
-      const res = await fetch(`${baseUrl}/chat/completions`, {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      };
+      // GitHub Copilot's OpenAI-compatible endpoint requires its integration
+      // headers in addition to the bearer token.
+      if (baseUrl.includes("githubcopilot.com")) {
+        headers["Copilot-Integration-Id"] = "vscode-chat";
+        headers["Editor-Version"] = "vscode/1.95.0";
+      }
+      // OpenCode Go routes requests by session; without this header it
+      // returns MissingSessionID instead of running the model.
+      if (baseUrl.includes("opencode.ai")) {
+        headers["x-opencode-session"] =
+          process.env.LLM_SESSION_ID ?? "job-search-local";
+      }
+      const endpoint =
+        api === "responses"
+          ? `${baseUrl}/responses`
+          : `${baseUrl}/chat/completions`;
+      const payload =
+        api === "responses"
+          ? {
+              model,
+              instructions: systemPrompt,
+              input: userPrompt,
+              text: { format: { type: "json_object" } },
+            }
+          : {
+              model,
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt },
+              ],
+              response_format: { type: "json_object" },
+              temperature: 0,
+            };
+      const res = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          response_format: { type: "json_object" },
-          temperature: 0,
-        }),
+        headers,
+        body: JSON.stringify(payload),
         signal: controller.signal,
       });
       if (!res.ok) {
@@ -110,25 +142,43 @@ export class CloudJsonProvider implements LlmProvider {
       }
       const data = (await res.json()) as {
         choices?: { message?: { content?: unknown } }[];
+        output_text?: unknown;
+        output?: { content?: { type?: string; text?: unknown }[] }[];
         usage?: {
           prompt_tokens?: number;
           completion_tokens?: number;
+          input_tokens?: number;
+          output_tokens?: number;
         };
       };
-      const content = data.choices?.[0]?.message?.content;
-      if (typeof content !== "string" || !content.trim()) {
+      const responseText =
+        api === "responses"
+          ? (data.output_text ??
+            (data.output ?? [])
+              .flatMap((item) => item.content ?? [])
+              .filter((part) => part.type === "output_text")
+              .map((part) => part.text)
+              .filter((text): text is string => typeof text === "string")
+              .join("\n"))
+          : data.choices?.[0]?.message?.content;
+      const content = typeof responseText === "string" ? responseText : "";
+      if (!content.trim()) {
         throw new LlmError(this.name, "model returned an empty message");
       }
+      const promptTokens =
+        data.usage?.prompt_tokens ?? data.usage?.input_tokens ?? null;
+      const completionTokens =
+        data.usage?.completion_tokens ?? data.usage?.output_tokens ?? null;
       this.lastUsage = {
-        prompt_tokens: data.usage?.prompt_tokens ?? null,
-        completion_tokens: data.usage?.completion_tokens ?? null,
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
         model,
       };
       if (data.usage) {
         console.log(
           `[llm] cloud model=${model} ` +
-            `prompt_tokens=${data.usage.prompt_tokens ?? "?"} ` +
-            `completion_tokens=${data.usage.completion_tokens ?? "?"}`,
+            `prompt_tokens=${promptTokens ?? "?"} ` +
+            `completion_tokens=${completionTokens ?? "?"}`,
         );
       }
       try {

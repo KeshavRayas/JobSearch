@@ -49,6 +49,7 @@ if (env.LLM_PROVIDER === "cloud") {
     process.exit(1);
   }
   console.log(`  model: ${env.LLM_MODEL}`);
+  console.log(`  API mode: ${env.LLM_API_MODE ?? "chat"}`);
   if (env.LLM_BASE_URL) console.log(`  base URL: ${env.LLM_BASE_URL}`);
 } else {
   console.log(
