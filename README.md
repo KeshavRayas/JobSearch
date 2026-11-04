@@ -135,6 +135,7 @@ not deployed.
 | `bun run setup`            | Env check + migrations + seed (idempotent)    |
 | `bun run audit`            | JSON install health (visibility, base resume) |
 | `bun run smoke:llm`        | One provider call; verifies auth + JSON       |
+| `bun run smoke:flow`       | Full analyze→interview flow on one job        |
 | `bun run agent -- <cmd>`   | Agent CLI (see `AGENTS.md`)                   |
 | `bun run db:migrate`       | Apply Prisma migrations                       |
 | `bun run db:status`        | Migration status                              |
@@ -173,6 +174,9 @@ e2e/                     Playwright specs
   own rows. Uses longer timeouts because Neon is remote.
 - `bun run test:e2e` — Playwright against a dev server and the same database.
   Specs are serial by design and share fixtures.
+
+Current verified state (commands, counts, live flow): see
+[`docs/verified-local.md`](./docs/verified-local.md).
 
 ## Design
 

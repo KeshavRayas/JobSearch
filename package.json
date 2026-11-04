@@ -15,6 +15,7 @@
     "setup": "tsx scripts/setup.ts",
     "audit": "tsx scripts/audit.ts",
     "smoke:llm": "tsx scripts/smoke-llm.ts",
+    "smoke:flow": "tsx scripts/smoke-flow.ts",
     "agent": "tsx scripts/agent.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",

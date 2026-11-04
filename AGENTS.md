@@ -47,6 +47,7 @@ bun install
 bun run check:env       # doctor: env, provider, sources, digest
 bun run audit           # machine-readable install health (jobs visible? base resume?)
 bun run smoke:llm       # one provider call; proves model auth + JSON
+bun run smoke:flow      # analyze → tailor → validate → PDF → cover → interview
 bun run db:migrate      # apply Prisma migrations
 bun run dev             # http://localhost:3000
 bun run test            # unit only (no DB)
@@ -204,6 +205,8 @@ at an expired credential; pinning `OPENCODE_MODEL` is intentional.
   the DB has none, cleans them in teardown. Never point E2E at a foreign server.
 - Add an E2E spec for user-visible behavior; add integration coverage for
   service contracts. Do not add DB tests to the unit suite.
+- `bun run smoke:flow` verifies all five LLM flows on one real job.
+- The current evidence file is `docs/verified-local.md`.
 
 ## Change checklist
 

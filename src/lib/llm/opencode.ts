@@ -148,18 +148,35 @@ export class OpencodeCliProvider implements LlmProvider {
     systemPrompt: string,
     userPrompt: string,
   ): Promise<unknown> {
-    const message = `${systemPrompt}\n\n---\n\n${userPrompt}`;
-    const output = await this.run(message);
-    const text = collectEventText(output);
-    try {
-      return extractJsonObject(text);
-    } catch (err) {
-      throw new LlmError(
-        this.name,
-        "model did not return parseable JSON",
-        `${String(err)} :: ${text.slice(0, 500)}`,
-      );
+    const base = `${systemPrompt}\n\n---\n\n${userPrompt}`;
+    // Two attempts: some models occasionally answer with prose/tool chatter
+    // and no JSON object. The service-level repair retry cannot run until the
+    // provider returns something, so retry extraction here once.
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const message =
+        attempt === 1
+          ? base
+          : `${base}\n\nIMPORTANT: your previous reply contained no JSON object. Reply with ONLY the requested JSON object, no prose and no tool calls.`;
+      const output = await this.run(message);
+      const text = collectEventText(output);
+      try {
+        return extractJsonObject(text);
+      } catch (err) {
+        console.error(
+          `[llm] no JSON object in reply (attempt ${attempt}/2)${
+            attempt === 2 ? "" : " — retrying once"
+          }`,
+        );
+        if (attempt === 2) {
+          throw new LlmError(
+            this.name,
+            "model did not return parseable JSON after a repair retry",
+            `${String(err)} :: ${text.slice(0, 500)}`,
+          );
+        }
+      }
     }
+    throw new LlmError(this.name, "model returned no JSON");
   }
 
   private run(message: string): Promise<string> {
