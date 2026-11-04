@@ -2,11 +2,15 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
-import { ALL_SKILLS } from "@/lib/constants";
+import type { SkillCount } from "@/lib/repositories/jobs.repository";
 
-const DEPARTMENT_OPTIONS = ALL_SKILLS.slice(0, 12);
-
-export function JobFilters({ total }: { total: number }) {
+export function JobFilters({
+  total,
+  skills,
+}: {
+  total: number;
+  skills: SkillCount[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -139,7 +143,7 @@ export function JobFilters({ total }: { total: number }) {
               Skills
             </div>
             <div className="flex flex-wrap gap-2">
-              {DEPARTMENT_OPTIONS.map((skill) => (
+              {skills.map(({ skill, count }) => (
                 <button
                   key={skill}
                   onClick={() =>
@@ -151,8 +155,10 @@ export function JobFilters({ total }: { total: number }) {
                     })
                   }
                   className={pillClass(activeSkills.includes(skill))}
+                  title={`${count} open role${count === 1 ? "" : "s"}`}
                 >
-                  {skill}
+                  {skill}{" "}
+                  <span className="text-[11px] opacity-60">{count}</span>
                 </button>
               ))}
             </div>

@@ -50,7 +50,7 @@ function NewResumeContent() {
   );
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col bg-bg">
+    <div className="h-screen overflow-hidden flex flex-col bg-[#FAFAF7]">
       <ResumeEditor
         key={latest?.name ?? "default"}
         initialData={latest?.data ?? defaultResumeData()}

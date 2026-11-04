@@ -14,6 +14,8 @@ enum JobSource {
   GREENHOUSE
   LEVER
   ASHBY
+  WORKDAY
+  MANUAL
 }
 
 enum CompanyType {

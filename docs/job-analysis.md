@@ -27,8 +27,27 @@ throws typed `LlmError`s. Swap via the `LlmProvider` interface
 (`OPENCODE_AGENT` forces an agent, `OPENCODE_BIN` a binary path,
 `LLM_TIMEOUT_MS` the timeout).
 
-**Local-only.** The route spawns the CLI on its host, so Analyze works
+**Local-only by default.** The route spawns the CLI on its host, so Analyze works
 under local `bun run dev`, never on Vercel. Everything else is unaffected.
+
+## Hosted provider (Phase 4A) + BYOK (Phase 5A)
+
+`LLM_PROVIDER=cloud` selects `CloudJsonProvider` (`src/lib/llm/cloud.ts`):
+any OpenAI-compatible `/chat/completions` endpoint over HTTPS, so all five
+flows (analyze, tailor, validate, cover, interview) work on Vercel through
+the same `getDefaultProvider()` factory — no route or service changes.
+Requires `LLM_API_KEY` + `LLM_MODEL` (pinned by the operator, never
+defaulted); optional `LLM_BASE_URL`, `LLM_TIMEOUT_MS`. Every call logs
+model + token usage; the 422 pre-gates and persist-only-validated rules
+still bound spend. Anything else keeps the free local CLI passthrough.
+
+BYOK lets the user bring their own key instead of waiting on the shared
+quota: the panel stores `{provider, baseUrl, model, key}` in localStorage
+and sends it per request (`x-llm-key/model/base-url/label`). The server
+(`resolveProvider` in `src/lib/llm/userKey.ts`) prefers the user key, then
+env, then CLI — the key is never persisted or logged. `POST /api/llm/test`
+validates a key with one tiny call before the UI saves it. Long calls show
+elapsed seconds + Cancel (AbortController); results carry token usage.
 
 ## Gotchas found the hard way (do not regress)
 

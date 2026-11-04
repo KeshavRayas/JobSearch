@@ -61,7 +61,7 @@ function contactLine(c: ResumeContact): string {
   return [line1, line2].filter(Boolean).join(" \\\\[2pt]\n    ");
 }
 
-function displayUrl(url: string): string {
+export function displayUrl(url: string): string {
   return url.replace(/^https?:\/\//, "");
 }
 

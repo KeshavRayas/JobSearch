@@ -88,3 +88,8 @@ uncertain > ineligible), never exact floats.
 - `DIGEST_TO_EMAIL` - digest recipient. When unset (or `RESEND_API_KEY`
   unset), the digest is skipped with a log line and the run still succeeds.
 - `DIGEST_FROM_EMAIL` - optional sender override (verified domain).
+- `CRON_SECRET` - when set, `/api/cron/*` require the Vercel-sent bearer
+  token (401 otherwise). Set it on Vercel; leave unset for local dev.
+- `LLM_PROVIDER=cloud` + `LLM_API_KEY` + `LLM_MODEL` (+ optional
+  `LLM_BASE_URL`) - run the five LLM flows against a hosted endpoint
+  instead of the local OpenCode CLI. Every call logs model + token usage.

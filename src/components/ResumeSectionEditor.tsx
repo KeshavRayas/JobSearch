@@ -119,9 +119,7 @@ export function ResumeSectionEditor({ section, onChange }: Props) {
         />
       );
     default:
-      return (
-        <p className="text-body text-text-secondary">Unknown section type</p>
-      );
+      return <p className="text-[14px] text-black/55">Unknown section type</p>;
   }
 }
 
@@ -140,7 +138,7 @@ function SummaryEditor({
       onChange={(e) => onItemChange(item.id, { content: e.target.value })}
       placeholder="Write a brief professional summary..."
       rows={4}
-      className="w-full border-3 border-black rounded-[12px] px-4 py-3 text-body font-medium bg-surface placeholder:text-text-secondary outline-none resize-y focus:border-black"
+      className="w-full border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500 resize-y focus:border-black"
     />
   );
 }
@@ -173,14 +171,14 @@ function ExperienceItemEditor({
           value={item.company}
           onChange={(e) => onChange(item.id, { company: e.target.value })}
           placeholder="Company"
-          className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+          className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
         />
         <input
           type="text"
           value={item.title}
           onChange={(e) => onChange(item.id, { title: e.target.value })}
           placeholder="Title"
-          className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+          className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
         />
       </div>
       <div className="grid grid-cols-3 gap-3">
@@ -189,14 +187,14 @@ function ExperienceItemEditor({
           value={item.location}
           onChange={(e) => onChange(item.id, { location: e.target.value })}
           placeholder="Location"
-          className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+          className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
         />
         <input
           type="text"
           value={item.startDate}
           onChange={(e) => onChange(item.id, { startDate: e.target.value })}
           placeholder="Start (e.g. Jan 2022)"
-          className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+          className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
         />
         <div className="flex items-center gap-2">
           <input
@@ -204,7 +202,7 @@ function ExperienceItemEditor({
             value={item.endDate}
             onChange={(e) => onChange(item.id, { endDate: e.target.value })}
             placeholder="End (or Present)"
-            className="flex-1 border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+            className="flex-1 border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
           />
           <label className="flex items-center gap-1.5 text-label font-bold shrink-0 cursor-pointer">
             <input
@@ -216,7 +214,7 @@ function ExperienceItemEditor({
                   endDate: e.target.checked ? "Present" : item.endDate,
                 })
               }
-              className="control-checkbox"
+              className="accent-[#111] w-4 h-4 shrink-0"
             />
             Current
           </label>
@@ -227,7 +225,7 @@ function ExperienceItemEditor({
         onChange={(e) => onChange(item.id, { description: e.target.value })}
         placeholder="Description"
         rows={2}
-        className="w-full border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none resize-y"
+        className="w-full border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500 resize-y"
       />
       <div className="space-y-1.5">
         {item.bulletPoints.map((bp, i) => (
@@ -238,11 +236,11 @@ function ExperienceItemEditor({
               value={bp}
               onChange={(e) => updateBullet(i, e.target.value)}
               placeholder="Key achievement or responsibility"
-              className="flex-1 border-3 border-black rounded-[12px] px-3 py-1.5 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+              className="flex-1 border border-black/10 rounded-[14px] px-4 py-2 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
             />
             <button
               onClick={() => removeBullet(i)}
-              className="w-6 h-6 rounded-full border-2 border-red flex items-center justify-center text-red hover:bg-red hover:text-white transition-[150ms] shrink-0"
+              className="w-6 h-6 rounded-full border border-black/10 flex items-center justify-center text-black/40 hover:text-red-600 hover:border-red-300 transition-all duration-500 shrink-0"
             >
               <X className="w-3 h-3" />
             </button>
@@ -250,7 +248,7 @@ function ExperienceItemEditor({
         ))}
         <button
           onClick={addBullet}
-          className="flex items-center gap-1 text-label font-bold text-text-secondary hover:text-black transition-[150ms]"
+          className="flex items-center gap-1 text-[13px] text-black/50 hover:text-black transition-colors duration-300"
         >
           <Plus className="w-3 h-3" /> Add bullet point
         </button>
@@ -274,14 +272,14 @@ function EducationItemEditor({
           value={item.school}
           onChange={(e) => onChange(item.id, { school: e.target.value })}
           placeholder="School / University"
-          className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+          className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
         />
         <input
           type="text"
           value={item.degree}
           onChange={(e) => onChange(item.id, { degree: e.target.value })}
           placeholder="Degree"
-          className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+          className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
         />
       </div>
       <div className="grid grid-cols-3 gap-3">
@@ -290,21 +288,21 @@ function EducationItemEditor({
           value={item.field}
           onChange={(e) => onChange(item.id, { field: e.target.value })}
           placeholder="Field of study"
-          className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+          className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
         />
         <input
           type="text"
           value={item.startDate}
           onChange={(e) => onChange(item.id, { startDate: e.target.value })}
           placeholder="Start"
-          className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+          className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
         />
         <input
           type="text"
           value={item.endDate}
           onChange={(e) => onChange(item.id, { endDate: e.target.value })}
           placeholder="End"
-          className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+          className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -313,7 +311,7 @@ function EducationItemEditor({
           value={item.gpa}
           onChange={(e) => onChange(item.id, { gpa: e.target.value })}
           placeholder="GPA (optional)"
-          className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+          className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
         />
       </div>
       <textarea
@@ -321,7 +319,7 @@ function EducationItemEditor({
         onChange={(e) => onChange(item.id, { description: e.target.value })}
         placeholder="Description (optional)"
         rows={2}
-        className="w-full border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none resize-y"
+        className="w-full border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500 resize-y"
       />
     </div>
   );
@@ -357,7 +355,7 @@ function SkillsEditor({
         value={item.category}
         onChange={(e) => onItemChange(item.id, { category: e.target.value })}
         placeholder="Category (e.g. Languages, Frameworks)"
-        className="w-full border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+        className="w-full border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
       />
       <TagInput
         tags={item.skills}
@@ -398,14 +396,14 @@ function ProjectItemEditor({
           value={item.name}
           onChange={(e) => onChange(item.id, { name: e.target.value })}
           placeholder="Project name"
-          className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+          className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
         />
         <input
           type="text"
           value={item.url}
           onChange={(e) => onChange(item.id, { url: e.target.value })}
           placeholder="URL (optional)"
-          className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+          className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
         />
       </div>
       <textarea
@@ -413,7 +411,7 @@ function ProjectItemEditor({
         onChange={(e) => onChange(item.id, { description: e.target.value })}
         placeholder="Description"
         rows={2}
-        className="w-full border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none resize-y"
+        className="w-full border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500 resize-y"
       />
       <TagInput
         tags={item.technologies}
@@ -436,11 +434,11 @@ function ProjectItemEditor({
               value={bp}
               onChange={(e) => updateBullet(i, e.target.value)}
               placeholder="Key highlight"
-              className="flex-1 border-3 border-black rounded-[12px] px-3 py-1.5 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+              className="flex-1 border border-black/10 rounded-[14px] px-4 py-2 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
             />
             <button
               onClick={() => removeBullet(i)}
-              className="w-6 h-6 rounded-full border-2 border-red flex items-center justify-center text-red hover:bg-red hover:text-white transition-[150ms] shrink-0"
+              className="w-6 h-6 rounded-full border border-black/10 flex items-center justify-center text-black/40 hover:text-red-600 hover:border-red-300 transition-all duration-500 shrink-0"
             >
               <X className="w-3 h-3" />
             </button>
@@ -448,7 +446,7 @@ function ProjectItemEditor({
         ))}
         <button
           onClick={addBullet}
-          className="flex items-center gap-1 text-label font-bold text-text-secondary hover:text-black transition-[150ms]"
+          className="flex items-center gap-1 text-[13px] text-black/50 hover:text-black transition-colors duration-300"
         >
           <Plus className="w-3 h-3" /> Add bullet point
         </button>
@@ -471,28 +469,28 @@ function CertificationItemEditor({
         value={item.name}
         onChange={(e) => onChange(item.id, { name: e.target.value })}
         placeholder="Certification name"
-        className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+        className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
       />
       <input
         type="text"
         value={item.issuer}
         onChange={(e) => onChange(item.id, { issuer: e.target.value })}
         placeholder="Issuer"
-        className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+        className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
       />
       <input
         type="text"
         value={item.date}
         onChange={(e) => onChange(item.id, { date: e.target.value })}
         placeholder="Date"
-        className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+        className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
       />
       <input
         type="text"
         value={item.url}
         onChange={(e) => onChange(item.id, { url: e.target.value })}
         placeholder="URL (optional)"
-        className="border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+        className="border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500"
       />
     </div>
   );
@@ -517,26 +515,18 @@ function CustomSectionEditor({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-label font-bold text-text-secondary">
-          Format:
+        <span className="text-[11px] uppercase tracking-[0.12em] text-black/45">
+          Format
         </span>
         <button
           onClick={() => onFormatChange("text")}
-          className={`px-3 py-1 rounded-full border-2 text-label font-bold transition-[150ms] ${
-            isText
-              ? "bg-black text-white border-black"
-              : "border-black text-black hover:bg-black hover:text-white"
-          }`}
+          className={`calm-pill ${isText ? "on" : ""}`}
         >
           Text block
         </button>
         <button
           onClick={() => onFormatChange("list")}
-          className={`px-3 py-1 rounded-full border-2 text-label font-bold transition-[150ms] ${
-            !isText
-              ? "bg-black text-white border-black"
-              : "border-black text-black hover:bg-black hover:text-white"
-          }`}
+          className={`calm-pill ${!isText ? "on" : ""}`}
         >
           List
         </button>
@@ -551,7 +541,7 @@ function CustomSectionEditor({
           }}
           placeholder="Enter content..."
           rows={5}
-          className="w-full border-3 border-black rounded-[12px] px-4 py-3 text-body font-medium bg-surface placeholder:text-text-secondary outline-none resize-y"
+          className="w-full border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500 resize-y"
         />
       ) : (
         <ItemListEditor
@@ -565,7 +555,7 @@ function CustomSectionEditor({
               onChange={(e) => onChange(item.id, { content: e.target.value })}
               placeholder="Entry content..."
               rows={2}
-              className="w-full border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none resize-y"
+              className="w-full border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] bg-white placeholder:text-black/35 outline-none focus:border-black/30 transition-colors duration-500 resize-y"
             />
           )}
         />
@@ -595,15 +585,15 @@ function ItemListEditor<T extends { id: string }>({
       {items.map((item, i) => (
         <div
           key={item.id ?? i}
-          className="border-2 border-black rounded-[12px] p-4 relative"
+          className="border border-black/10 rounded-[14px] p-4 relative bg-white"
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-label font-bold text-text-secondary">
+            <span className="text-[11px] uppercase tracking-[0.12em] text-black/45">
               #{i + 1}
             </span>
             <button
               onClick={() => onRemove(item.id)}
-              className="w-6 h-6 rounded-full border-2 border-red flex items-center justify-center text-red hover:bg-red hover:text-white transition-[150ms]"
+              className="w-6 h-6 rounded-full border border-black/10 flex items-center justify-center text-black/40 hover:text-red-600 hover:border-red-300 transition-all duration-500"
             >
               <Trash2 className="w-3 h-3" />
             </button>
@@ -611,10 +601,7 @@ function ItemListEditor<T extends { id: string }>({
           {renderItem(item, onItemChange)}
         </div>
       ))}
-      <button
-        onClick={onAdd}
-        className="w-full flex items-center justify-center gap-1.5 border-2 border-dashed border-black rounded-full px-4 py-2 text-label font-extrabold uppercase tracking-widest hover:bg-black hover:text-white hover:border-solid transition-[150ms]"
-      >
+      <button onClick={onAdd} className="calm-pill w-full justify-center">
         <Plus className="w-3.5 h-3.5" /> Add Entry
       </button>
     </div>
@@ -646,16 +633,16 @@ function TagInput({
   }
 
   return (
-    <div className="border-3 border-black rounded-[12px] px-3 py-2 flex flex-wrap gap-1.5 items-center bg-surface">
+    <div className="border border-black/10 rounded-[14px] px-3 py-2 flex flex-wrap gap-1.5 items-center bg-white focus-within:border-black/30 transition-colors duration-500">
       {tags.map((tag) => (
         <span
           key={tag}
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F3F3F3] text-label font-bold"
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/[0.04] text-[11px] font-medium text-black/60"
         >
           {tag}
           <button
             onClick={() => onRemove(tag)}
-            className="w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-[150ms]"
+            className="w-3.5 h-3.5 rounded-full flex items-center justify-center hover:text-black transition-colors duration-300"
           >
             <X className="w-2.5 h-2.5" />
           </button>
@@ -667,7 +654,7 @@ function TagInput({
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={tags.length === 0 ? placeholder : ""}
-        className="flex-1 min-w-[100px] text-body font-medium bg-transparent outline-none placeholder:text-text-secondary"
+        className="flex-1 min-w-[100px] text-[14px] bg-transparent outline-none placeholder:text-black/35"
       />
     </div>
   );

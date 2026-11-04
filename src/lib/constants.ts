@@ -145,11 +145,46 @@ export const ALL_SKILLS = Array.from(
   new Set(Object.values(SKILL_ALIASES)),
 ).sort();
 
+// --- Skill filter curation (Option C: signal-first) ---
+// Generic terms match too many jobs to discriminate, or describe
+// backgrounds rather than hirable stacks. They stay searchable via
+// `q` and `skills` params but never render as filter pills.
+export const GENERIC_SKILL_STOPLIST = [
+  "Artificial Intelligence",
+  "SDE",
+  "Computer Science",
+  "Backend",
+  "Frontend",
+  "Algorithms",
+  "Data Structures",
+  "Distributed Systems",
+  "Machine Learning",
+  "System Design",
+] as const;
+
+// Curated signal-first Top 12, ordered by live frequency (54 active
+// jobs audited 2026-09-07). Counts are fetched at request time —
+// this list only fixes *which* skills may appear, never the numbers.
+export const SIGNAL_SKILLS = [
+  "Python",
+  "Go",
+  "Java",
+  "Kubernetes",
+  "SQL",
+  "AWS",
+  "GCP",
+  "PostgreSQL",
+  "TypeScript",
+  "React",
+  "Rust",
+  "Redis",
+] as const;
+
 export const CURATED_COMPANIES: {
   name: string;
   slug: string;
   companyType: CompanyType;
-  atsType: "greenhouse" | "lever" | "ashby" | null;
+  atsType: "greenhouse" | "lever" | "ashby" | "workday" | null;
   atsBoard: string | null;
   website: string;
   logo: string | null;
@@ -702,8 +737,8 @@ export const CURATED_COMPANIES: {
     name: "Accenture",
     slug: "accenture",
     companyType: "MNC",
-    atsType: null,
-    atsBoard: null,
+    atsType: "workday",
+    atsBoard: "accenture.wd103.myworkdayjobs.com/AccentureCareers",
     website: "https://www.accenture.com/in-en/careers",
     logo: null,
   },
@@ -729,8 +764,8 @@ export const CURATED_COMPANIES: {
     name: "Walmart",
     slug: "walmart",
     companyType: "MNC",
-    atsType: null,
-    atsBoard: null,
+    atsType: "workday",
+    atsBoard: "walmart.wd504.myworkdayjobs.com/WalmartExternal",
     website: "https://careers.walmart.com",
     logo: null,
   },
@@ -765,8 +800,8 @@ export const CURATED_COMPANIES: {
     name: "Nvidia",
     slug: "nvidia",
     companyType: "MNC",
-    atsType: null,
-    atsBoard: null,
+    atsType: "workday",
+    atsBoard: "nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite",
     website: "https://www.nvidia.com/careers",
     logo: null,
   },

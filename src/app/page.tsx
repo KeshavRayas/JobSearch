@@ -1,13 +1,27 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import nextDynamic from "next/dynamic";
 import { JobFilters } from "@/components/JobFilters";
 import { JobCard } from "@/components/JobCard";
-import { JobDetailPanel } from "@/components/JobDetailPanel";
 import { Pagination } from "@/components/Pagination";
-import { searchJobs } from "@/lib/repositories/jobs.repository";
+import {
+  searchJobs,
+  getSignalSkillCounts,
+} from "@/lib/repositories/jobs.repository";
 import { logSearchEvent } from "@/lib/repositories/search.repository";
 import type { JobFilters as Filters } from "@/lib/types";
 import { RefreshButton } from "@/components/RefreshButton";
+import { JobImport } from "@/components/JobImport";
+import { ModalShell } from "@/components/ModalShell";
+import { SiteNav } from "@/components/SiteNav";
+
+// Code-split: the detail cockpit (panel + all its fetch logic) ships as a
+// separate chunk instead of weighing down the initial homepage bundle.
+// It only renders when ?selected= is present.
+const JobDetailPanel = nextDynamic(
+  () => import("@/components/JobDetailPanel").then((m) => m.JobDetailPanel),
+  { ssr: true },
+);
 
 type SearchParams = Promise<{
   q?: string;
@@ -47,11 +61,14 @@ export default async function HomePage({
     pageSize: 20,
   };
 
-  if (filters.query) {
-    await logSearchEvent(filters.query);
-  }
-
-  const result = await searchJobs(filters);
+  // All three are independent (log is a blind write, list + counts read
+  // different slices) — one round of parallel queries instead of three
+  // sequential Neon round trips.
+  const [result, skillCounts] = await Promise.all([
+    searchJobs(filters),
+    getSignalSkillCounts(),
+    filters.query ? logSearchEvent(filters.query) : Promise.resolve(),
+  ]);
   const selectedId = sp.selected;
 
   return (
@@ -61,12 +78,9 @@ export default async function HomePage({
         <Link href="/" className="font-serif-calm text-xl">
           Job Search
         </Link>
-        <div className="flex items-center gap-2">
+        <SiteNav current="discover">
           <RefreshButton />
-          <Link href="/resumes" className="calm-pill">
-            Resumes
-          </Link>
-        </div>
+        </SiteNav>
       </header>
 
       {/* Centered hero */}
@@ -82,7 +96,10 @@ export default async function HomePage({
         </h1>
         <div className="mt-8">
           <Suspense>
-            <JobFilters total={result.total} />
+            <JobFilters total={result.total} skills={skillCounts} />
+          </Suspense>
+          <Suspense>
+            <JobImport />
           </Suspense>
         </div>
         {(filters.query || filters.skills?.length) && (
@@ -119,13 +136,13 @@ export default async function HomePage({
         )}
       </section>
 
-      {/* Calm detail overlay */}
+      {/* Centered detail modal — Suspense covers the code-split panel chunk */}
       {selectedId && (
-        <div className="fixed inset-0 z-40 flex justify-end bg-black/20 backdrop-blur-[2px]">
-          <div className="w-full max-w-[480px] h-full overflow-y-auto custom-scrollbar bg-[#FAFAF7] border-l border-black/10 p-6 calm-enter">
+        <Suspense>
+          <ModalShell>
             <JobDetailPanel jobs={result.data} />
-          </div>
-        </div>
+          </ModalShell>
+        </Suspense>
       )}
     </div>
   );

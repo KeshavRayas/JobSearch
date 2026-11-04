@@ -65,6 +65,7 @@ export const TAILOR_SYSTEM_PROMPT = [
   "Answer DIRECTLY in this response. Do NOT use any tools. Do NOT explore files. Do NOT run commands.",
   "Your entire reply must be ONLY a JSON object matching the requested shape.",
   "Every factual claim must come from the EVIDENCE items below. Citing a source ID you were not given is forbidden.",
+  "Cite EVERY evidence item a fact comes from. If you mention a skill, tool, employer, number, or date that appears in a different evidence item than the one you started with, add that evidence ID to sourceIds.",
   "Forbidden: new skills, new employers, new numbers, new dates, new degrees. If the evidence lacks something the job wants, leave the gap visible — never invent it.",
 ].join(" ");
 
@@ -86,7 +87,9 @@ export function buildTailorPrompt(input: TailorPromptInput): string {
   return [
     "Rewrite the resume below for the JOB, using the ANALYSIS. Keep every section. Reorder bullets so the most relevant come first. Rewrite wording to mirror the posting's keywords WITHOUT changing facts.",
     "Every tailored item needs provenance: sourceIds (evidence IDs used) and change (UNCHANGED | REWRITE | REORDER | COMBINE).",
+    "sourceIds must include EVERY evidence item you took a fact from — not just the first one. If the summary mentions a skill that lives in a skills evidence item, cite that skills item too.",
     "Skills lists may be reordered by relevance but must keep exactly the same skills — never add or drop one.",
+    "If an item mentions a technology or skill, cite the evidence item that contains it. Do not mention skills that are absent from that item's own evidence.",
     "Return ONLY this JSON shape and nothing else:",
     '{"sections": [{"id": string, "type": string, "title": string, "items": [{"id": string, "kind": "summary"|"experience"|"education"|"skills"|"projects"|"certifications"|"custom", "fields": object, "provenance": {"sourceIds": string[], "change": "UNCHANGED"|"REWRITE"|"REORDER"|"COMBINE"}}]}]}',
     "Example item:",

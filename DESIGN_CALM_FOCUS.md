@@ -45,13 +45,21 @@ Forbidden: `border-3`, `border-4`, `brutal-shadow-*`, `bg-yellow`, `bg-green`,
   collapse into "More filters" disclosure — never a 280px sidebar.
 - List: stacked calm cards, `fadeUp 900ms` staggered `animation-delay: i*60ms`.
 - Focus mode: hovering a card dims siblings (`opacity:.35 + blur(.5px)` on wrapper).
-- Detail: calm overlay sheet (rounded-3xl, hairline border, soft shadow
-  `0 20px 50px -20px rgba(0,0,0,.18)`), NOT yellow header + 4px border.
+- Detail: centered calm modal (`ModalShell`: `max-w-2xl`, `88vh`, hairline
+  border, soft shadow `0 20px 50px -20px rgba(0,0,0,.18)`), backdrop click +
+  Escape to close (filters preserved). NOT right-aligned sheet, NOT yellow
+  header + 4px border.
 - Pagination: minimal dots/pills, no brutalist circles.
 
-## Motion (900ms buttery)
+## Motion (fast feedback, slow entrances)
 
-- All transitions use `var(--ease)`, 600–900ms. No 150ms snaps.
+- Entrances use `var(--ease)` at 900ms: cards `fadeUp` staggered,
+  modal `calm-enter`. This is the only place 900ms lives.
+- Hover/tap feedback is 250–300ms: cards lift, pills recolor, buttons
+  respond. The old 900ms hover + sibling `blur()` made every interaction
+  feel laggy and forced full-list repaints — both removed.
+- No `backdrop-blur` on overlays (GPU-heavy over full pages); flat
+  `bg-black/20` only. No `filter: blur()` on hover anywhere.
 - Cards: `translateY(-4px)` + soft shadow on hover.
 - List entrance: `fadeUp` staggered.
 - Search filter: client-side, no full-page flash. Server list streams behind
@@ -73,8 +81,21 @@ Forbidden: `border-3`, `border-4`, `brutal-shadow-*`, `bg-yellow`, `bg-green`,
 
 - `src/app/globals.css` — tokens, calm-card, chip, fadeUp, skeleton, focus-dim
 - `src/app/layout.tsx` — fonts (Inter + Instrument Serif), paper bg
-- `src/app/page.tsx` — centered hero + Suspense-streamed list
+- `src/app/page.tsx` — centered hero + Suspense-streamed list; homepage
+  queries run in one parallel round (list + skill counts + search log);
+  skill counts cached 10 min in-process; detail panel code-split
 - `src/components/JobFilters.tsx` — search pill + 4 pills + More disclosure
 - `src/components/JobCard.tsx` — calm card
-- `src/components/JobDetailPanel.tsx` — calm sheet (logic untouched)
+- `src/components/JobDetailPanel.tsx` — calm sheet: hairline pills, tinted
+  text badges (no filled green/yellow/red/purple), serif section titles,
+  sentence-case footer; action buttons disabled until hydrated (logic untouched)
+- `src/app/tracker/page.tsx` — calm board
+- `src/app/settings/page.tsx`, `src/components/ProfileSettings.tsx` — calm
+  settings (identity, preferences, skills, role goals, base resume)
+- `src/components/SiteNav.tsx` — shared quiet pill navigation
+- `src/app/resumes/page.tsx`, `resumes/new`, `resumes/[id]` — calm index +
+  editor (ResumeForm/ResumeSectionEditor/ResumeUploadButton/
+  DeleteResumeButton/LatexEditor chrome); section form used when no tex
+  source exists
+- `src/app/jobs/[id]/page.tsx` — calm standalone job view
 - `src/components/Pagination.tsx`, `RefreshButton.tsx` — minimal pills

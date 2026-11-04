@@ -22,13 +22,11 @@ import { ResumeSectionEditor } from "./ResumeSectionEditor";
 import {
   Save,
   Download,
-  Plus,
   Trash2,
   ChevronDown,
   ChevronUp,
   Check,
   Loader2,
-  FileText,
   X,
   Briefcase,
 } from "lucide-react";
@@ -264,20 +262,17 @@ export function ResumeForm({
   );
 
   return (
-    <div className="h-full flex flex-col bg-surface">
-      <div className="bg-yellow border-b-4 border-black px-6 py-4 shrink-0 flex items-center justify-between">
+    <div className="h-full flex flex-col bg-[#FAFAF7] text-[#111]">
+      <div className="bg-white border-b border-black/10 px-6 py-4 shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="w-9 h-9 rounded-full bg-black flex items-center justify-center shrink-0 hover:opacity-90 transition-[150ms]"
+            className="font-serif-calm text-xl shrink-0"
+            title="Job Search home"
           >
-            <Briefcase className="w-4 h-4 text-yellow" />
+            <Briefcase className="w-4 h-4" />
           </Link>
-          <Link
-            href="/resumes"
-            className="px-3 py-1.5 rounded-full border-2 border-black text-label font-bold hover:bg-black hover:text-white transition-[150ms] flex items-center gap-1"
-          >
-            <FileText className="w-3.5 h-3.5" />
+          <Link href="/resumes" className="calm-pill">
             Resumes
           </Link>
           <input
@@ -287,18 +282,16 @@ export function ResumeForm({
               setTitle(e.target.value);
               scheduleSave();
             }}
-            className="bg-transparent text-title font-extrabold border-none outline-none w-64 placeholder:text-text-secondary"
-            placeholder="Resume Title"
+            className="bg-transparent font-serif-calm text-xl outline-none w-64 placeholder:text-black/35"
+            placeholder="Resume title"
           />
           {uploadedResumes.length > 0 && (
             <div className="relative">
               <button
                 onClick={() => setShowSwitchMenu(!showSwitchMenu)}
-                className="px-3 py-1.5 rounded-full border-2 border-black text-label font-bold hover:bg-black hover:text-white transition-[150ms] flex items-center gap-1"
+                className="calm-pill"
               >
-                <FileText className="w-3.5 h-3.5" />
-                Switch
-                <ChevronDown className="w-3 h-3" />
+                Switch ↓
               </button>
               {showSwitchMenu && (
                 <>
@@ -306,12 +299,12 @@ export function ResumeForm({
                     className="fixed inset-0 z-10"
                     onClick={() => setShowSwitchMenu(false)}
                   />
-                  <div className="absolute left-0 top-full mt-2 z-20 bg-surface border-3 border-black rounded-[14px] brutal-shadow-sm overflow-hidden min-w-[200px]">
+                  <div className="absolute left-0 top-full mt-2 z-20 bg-white border border-black/10 rounded-[14px] overflow-hidden min-w-[200px] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.18)]">
                     {uploadedResumes.map((r) => (
                       <button
                         key={r.id}
                         onClick={() => switchResume(r)}
-                        className="w-full px-4 py-2.5 text-left text-body font-bold hover:bg-yellow transition-[150ms] border-b-2 border-black/10 last:border-b-0 truncate"
+                        className="w-full px-4 py-2.5 text-left text-[14px] hover:bg-black/[0.04] transition-colors duration-300 border-b border-black/5 last:border-b-0 truncate"
                       >
                         {r.name}
                       </button>
@@ -322,16 +315,17 @@ export function ResumeForm({
             </div>
           )}
         </div>
-        <span className="text-label font-bold text-text-secondary">
+        <span className="text-[11px] uppercase tracking-[0.12em] text-black/45">
           {data.sections.length} section{data.sections.length !== 1 ? "s" : ""}
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4 max-w-4xl w-full mx-auto">
         {data.sections.length === 0 && (
           <div className="py-16 text-center">
-            <p className="text-body font-medium text-text-secondary mb-4">
-              No sections yet. Add your first section below.
+            <p className="font-serif-calm text-3xl">Nothing here — yet.</p>
+            <p className="text-[14px] text-black/55 mt-2">
+              Add your first section below.
             </p>
           </div>
         )}
@@ -353,25 +347,23 @@ export function ResumeForm({
           <button
             onClick={() => setShowSectionMenu(!showSectionMenu)}
             disabled={availableTypes.length === 0}
-            className="w-full flex items-center justify-center gap-2 border-3 border-dashed border-black rounded-full px-5 py-3 text-label font-extrabold uppercase tracking-widest hover:bg-black hover:text-white hover:border-solid transition-[150ms] disabled:opacity-30 disabled:cursor-not-allowed"
+            className="calm-pill w-full justify-center py-3 disabled:opacity-30"
           >
-            <Plus className="w-4 h-4" />
-            Add Section
+            + Add section
           </button>
 
           {showSectionMenu && (
-            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-surface border-3 border-black rounded-[14px] brutal-shadow-sm overflow-hidden z-20 min-w-[200px]">
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white border border-black/10 rounded-[14px] overflow-hidden z-20 min-w-[200px] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.18)]">
               {availableTypes.map((type) => (
                 <button
                   key={type}
                   onClick={() => addSection(type)}
-                  className="w-full px-4 py-2.5 text-left text-body font-bold hover:bg-yellow transition-[150ms] flex items-center gap-2"
+                  className="w-full px-4 py-2.5 text-left text-[14px] hover:bg-black/[0.04] transition-colors duration-300"
                 >
-                  <Plus className="w-3.5 h-3.5" />
                   {SECTION_LABELS[type] || type}
                 </button>
               ))}
-              <div className="border-t-3 border-black" />
+              <div className="border-t border-black/10" />
               <button
                 onClick={() => {
                   setShowSectionMenu(false);
@@ -379,10 +371,9 @@ export function ResumeForm({
                   setCustomSectionName("");
                   setCustomSectionFormat("text");
                 }}
-                className="w-full px-4 py-2.5 text-left text-body font-bold hover:bg-yellow transition-[150ms] flex items-center gap-2"
+                className="w-full px-4 py-2.5 text-left text-[14px] hover:bg-black/[0.04] transition-colors duration-300"
               >
-                <Plus className="w-3.5 h-3.5" />
-                Custom Section...
+                Custom section…
               </button>
             </div>
           )}
@@ -390,50 +381,44 @@ export function ResumeForm({
       </div>
 
       {showCustomDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-surface border-4 border-black rounded-[24px] brutal-shadow-lg p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
+          <div className="bg-white border border-black/10 rounded-[22px] p-6 w-full max-w-md mx-4 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.18)]">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-title font-extrabold">New Custom Section</h3>
+              <h3 className="font-serif-calm text-2xl">New custom section</h3>
               <button
                 onClick={() => setShowCustomDialog(false)}
-                className="w-8 h-8 rounded-full border-2 border-black flex items-center justify-center hover:bg-black hover:text-white transition-[150ms]"
+                className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center text-black/60 hover:text-black hover:border-black/30 transition-all duration-500"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             <label className="block mb-2">
-              <span className="text-label font-bold mb-1 block">
-                Section Name
+              <span className="text-[11px] uppercase tracking-[0.12em] text-black/45 mb-1 block">
+                Section name
               </span>
               <input
                 type="text"
                 value={customSectionName}
                 onChange={(e) => setCustomSectionName(e.target.value)}
                 placeholder="e.g. Publications, Awards, Languages"
-                className="w-full border-3 border-black rounded-[12px] px-3 py-2 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+                className="w-full bg-white border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] outline-none focus:border-black/30 transition-colors duration-500 placeholder:text-black/35"
                 autoFocus
               />
             </label>
             <label className="block mb-4">
-              <span className="text-label font-bold mb-1 block">Format</span>
+              <span className="text-[11px] uppercase tracking-[0.12em] text-black/45 mb-1 block">
+                Format
+              </span>
               <div className="flex gap-2">
                 <button
                   onClick={() => setCustomSectionFormat("text")}
-                  className={`flex-1 px-4 py-2 rounded-full border-2 text-label font-bold transition-[150ms] ${
-                    customSectionFormat === "text"
-                      ? "bg-black text-white border-black"
-                      : "border-black text-black hover:bg-black hover:text-white"
-                  }`}
+                  className={`calm-pill flex-1 justify-center ${customSectionFormat === "text" ? "on" : ""}`}
                 >
                   Text block
                 </button>
                 <button
                   onClick={() => setCustomSectionFormat("list")}
-                  className={`flex-1 px-4 py-2 rounded-full border-2 text-label font-bold transition-[150ms] ${
-                    customSectionFormat === "list"
-                      ? "bg-black text-white border-black"
-                      : "border-black text-black hover:bg-black hover:text-white"
-                  }`}
+                  className={`calm-pill flex-1 justify-center ${customSectionFormat === "list" ? "on" : ""}`}
                 >
                   List
                 </button>
@@ -442,27 +427,27 @@ export function ResumeForm({
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setShowCustomDialog(false)}
-                className="px-5 py-2.5 rounded-full border-3 border-black text-label font-extrabold uppercase tracking-widest hover:bg-black hover:text-white transition-[150ms]"
+                className="calm-pill"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddCustom}
                 disabled={!customSectionName.trim()}
-                className="px-5 py-2.5 rounded-full border-3 border-black bg-green text-label font-extrabold uppercase tracking-widest brutal-shadow-sm hover:opacity-90 transition-[150ms] disabled:opacity-30 disabled:cursor-not-allowed"
+                className="bg-[#111] text-white rounded-full px-5 py-2.5 text-[13px] font-medium transition-all duration-500 hover:opacity-90 disabled:opacity-30"
               >
-                Add Section
+                Add section
               </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="shrink-0 border-t-4 border-black px-6 py-4 flex items-center gap-3">
+      <div className="shrink-0 bg-white border-t border-black/10 px-6 py-4 flex items-center gap-3 max-w-4xl w-full mx-auto">
         <button
           onClick={save}
           disabled={saving}
-          className="flex items-center justify-center gap-2 bg-black text-white font-extrabold px-6 py-2.5 rounded-full border-3 border-black text-label uppercase tracking-widest hover:opacity-90 transition-[150ms] disabled:opacity-50"
+          className="bg-[#111] text-white rounded-full px-6 py-2.5 text-[13px] font-medium transition-all duration-500 hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {saving ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -471,12 +456,9 @@ export function ResumeForm({
           ) : (
             <Save className="w-4 h-4" />
           )}
-          {saving ? "Saving..." : saved ? "Saved" : "Save"}
+          {saving ? "Saving…" : saved ? "Saved" : "Save"}
         </button>
-        <button
-          onClick={handleDownload}
-          className="flex items-center justify-center gap-2 bg-green text-black font-extrabold px-6 py-2.5 rounded-full border-3 border-black brutal-shadow-sm brutal-hover text-label uppercase tracking-widest"
-        >
+        <button onClick={handleDownload} className="calm-pill">
           <Download className="w-4 h-4" />
           Download
         </button>
@@ -514,12 +496,12 @@ function SectionCard({
   const isCustom = section.type === "custom";
 
   return (
-    <div className="border-3 border-black rounded-[16px] overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 bg-surface-secondary border-b-3 border-black">
+    <div className="calm-card overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-black/10">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="w-7 h-7 rounded-full border-2 border-black flex items-center justify-center hover:bg-black hover:text-white transition-[150ms] shrink-0"
+            className="w-7 h-7 rounded-full border border-black/10 flex items-center justify-center text-black/60 hover:text-black hover:border-black/30 transition-all duration-500 shrink-0"
           >
             {collapsed ? (
               <ChevronDown className="w-3.5 h-3.5" />
@@ -546,12 +528,12 @@ function SectionCard({
                   setEditingTitle(false);
                 }
               }}
-              className="text-title font-extrabold bg-transparent border-b-2 border-black outline-none min-w-[100px]"
+              className="font-serif-calm text-xl bg-transparent border-b border-black/30 outline-none min-w-[100px]"
               autoFocus
             />
           ) : (
             <span
-              className="text-title font-extrabold truncate cursor-pointer"
+              className="font-serif-calm text-xl truncate cursor-pointer"
               onDoubleClick={() => isCustom && setEditingTitle(true)}
               title={isCustom ? "Double-click to rename" : undefined}
             >
@@ -563,27 +545,27 @@ function SectionCard({
           <button
             onClick={onMoveUp}
             disabled={index === 0}
-            className="w-7 h-7 rounded-full border-2 border-black flex items-center justify-center hover:bg-black hover:text-white transition-[150ms] disabled:opacity-30 disabled:cursor-not-allowed text-label font-bold"
+            className="w-7 h-7 rounded-full border border-black/10 flex items-center justify-center text-black/60 hover:text-black hover:border-black/30 transition-all duration-500 disabled:opacity-30 text-[13px]"
           >
             ↑
           </button>
           <button
             onClick={onMoveDown}
             disabled={index === total - 1}
-            className="w-7 h-7 rounded-full border-2 border-black flex items-center justify-center hover:bg-black hover:text-white transition-[150ms] disabled:opacity-30 disabled:cursor-not-allowed text-label font-bold"
+            className="w-7 h-7 rounded-full border border-black/10 flex items-center justify-center text-black/60 hover:text-black hover:border-black/30 transition-all duration-500 disabled:opacity-30 text-[13px]"
           >
             ↓
           </button>
           <button
             onClick={onRemove}
-            className="w-7 h-7 rounded-full border-2 border-red flex items-center justify-center text-red hover:bg-red hover:text-white transition-[150ms]"
+            className="w-7 h-7 rounded-full border border-black/10 flex items-center justify-center text-black/40 hover:text-red-600 hover:border-red-300 transition-all duration-500"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
       {!collapsed && (
-        <div className="p-4 space-y-3">
+        <div className="p-5 space-y-3">
           <ResumeSectionEditor section={section} onChange={onUpdate} />
         </div>
       )}

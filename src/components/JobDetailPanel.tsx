@@ -1,20 +1,48 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   X,
   ArrowUpRight,
   Briefcase,
-  MapPin,
-  Clock,
   FileText,
   Sparkles,
+  KeyRound,
 } from "lucide-react";
 import type { JobSearchResult } from "@/lib/types";
-import { formatDaysAgo, formatSalary } from "@/lib/utils";
+import { formatDaysAgo, formatSalary, enumLabel } from "@/lib/utils";
+import {
+  loadLlmSettings,
+  saveLlmSettings,
+  clearLlmSettings,
+  llmHeaders,
+  maskKey,
+  LLM_PRESETS,
+  type LlmSettings,
+} from "@/lib/llm/client";
+import { formatUsage } from "@/lib/llm/byok";
 
-interface JobAnalysisView {
+interface LlmCallMeta {
+  usage?: {
+    prompt_tokens: number | null;
+    completion_tokens: number | null;
+    model: string;
+  } | null;
+  provider?: { source: string; display: string; model: string | null } | null;
+}
+
+function UsageLine({ meta }: { meta: LlmCallMeta }) {
+  if (!meta.usage) return null;
+  return (
+    <p className="text-[11px] text-black/45">
+      {formatUsage(meta.usage)}
+      {meta.provider ? ` · via ${meta.provider.display}` : ""}
+    </p>
+  );
+}
+
+interface JobAnalysisView extends LlmCallMeta {
   id: string;
   summary: string;
   matchedSkills: string[];
@@ -66,7 +94,7 @@ interface AtsResultView {
   warnings: string[];
 }
 
-interface TailoredResumeView {
+interface TailoredResumeView extends LlmCallMeta {
   id: string;
   baseResumeId: string;
   version?: number;
@@ -81,7 +109,7 @@ interface TailoredResumeView {
   cached?: boolean;
 }
 
-interface CoverLetterView {
+interface CoverLetterView extends LlmCallMeta {
   id: string;
   content: {
     subject?: string;
@@ -107,7 +135,7 @@ interface PrepQuestionView {
   } | null;
 }
 
-interface InterviewPrepView {
+interface InterviewPrepView extends LlmCallMeta {
   id: string;
   content: {
     technical: PrepQuestionView[];
@@ -131,10 +159,10 @@ function renderTailoredFields(fields: TailoredItemView["fields"]): string {
 
 const CHANGE_STYLES: Record<TailoredItemView["provenance"]["change"], string> =
   {
-    UNCHANGED: "bg-[#F3F3F3]",
-    REWRITE: "bg-yellow",
-    REORDER: "bg-purple text-white",
-    COMBINE: "bg-green",
+    UNCHANGED: "border-black/10 text-black/60",
+    REWRITE: "border-black/30 text-black",
+    REORDER: "border-black/10 text-black/60",
+    COMBINE: "border-black/30 text-black",
   };
 
 export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
@@ -167,11 +195,76 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
 
   const [decision, setDecision] = useState<string | null>(null);
   const [deciding, setDeciding] = useState(false);
+  // Hydration gate: server-rendered buttons have no listeners until React
+  // hydrates (seconds on dev/Turbopack, longer on slow networks). Clicks in
+  // that window are silently lost — buttons stay disabled until mounted so
+  // the affordance is honest and e2e clicks can't race hydration.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration gate: first client render must match SSR (disabled), then enable
+    setMounted(true);
+  }, []);
   const [liveness, setLiveness] = useState<{
     alive: boolean;
     evidence: string | null;
   } | null>(null);
   const [checkingLive, setCheckingLive] = useState(false);
+
+  // ─── BYOK key state (Phase 5A) ───────────────────────────────────────────
+  // Lazy initializer (never an effect): first client render must match SSR.
+  const [llmSettings, setLlmSettings] = useState<LlmSettings | null>(() =>
+    loadLlmSettings(),
+  );
+  const [editingKey, setEditingKey] = useState(false);
+  const [keyPresetId, setKeyPresetId] = useState(LLM_PRESETS[0].id);
+  const [keyBaseUrl, setKeyBaseUrl] = useState(LLM_PRESETS[0].baseUrl);
+  const [keyModel, setKeyModel] = useState("");
+  const [keyValue, setKeyValue] = useState("");
+  const [testingKey, setTestingKey] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
+
+  // ─── Long-call timer + cancel (Phase 5A) ─────────────────────────────────
+  // One in-flight model call at a time in practice; tracked by endpoint so
+  // cancel always hits the right request.
+  const [callTimer, setCallTimer] = useState<{
+    endpoint: string;
+    elapsed: number;
+  } | null>(null);
+  const callControllers = useRef(new Map<string, AbortController>());
+  const callTick = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function startCallTimer(endpoint: string) {
+    const startedAt = Date.now();
+    setCallTimer({ endpoint, elapsed: 0 });
+    if (callTick.current) clearInterval(callTick.current);
+    callTick.current = setInterval(() => {
+      setCallTimer((t) =>
+        t && t.endpoint === endpoint
+          ? { ...t, elapsed: Math.floor((Date.now() - startedAt) / 1000) }
+          : t,
+      );
+    }, 1000);
+  }
+
+  function stopCallTimer(endpoint: string) {
+    if (callTick.current) {
+      clearInterval(callTick.current);
+      callTick.current = null;
+    }
+    callControllers.current.delete(endpoint);
+    setCallTimer((t) => (t?.endpoint === endpoint ? null : t));
+  }
+
+  function cancelCall(endpoint: string) {
+    callControllers.current.get(endpoint)?.abort();
+  }
+
+  function timerFor(endpoint: string): string {
+    return callTimer?.endpoint === endpoint ? ` · ${callTimer.elapsed}s` : "";
+  }
+
+  // Full description toggle (pre-apply detail). Reset with the selection.
+  const [showFullDesc, setShowFullDesc] = useState(false);
 
   // Intentional reset-on-selection-change: clears the previous job's
   // cached AI results before fetching the new selection below.
@@ -187,6 +280,12 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
     setPrepError(null);
     setDecision(null);
     setLiveness(null);
+    setShowFullDesc(false);
+    // A new selection orphans any in-flight model call: abort it so a late
+    // response can't land in the wrong job's panel.
+    for (const c of callControllers.current.values()) c.abort();
+    if (callTick.current) clearInterval(callTick.current);
+    setCallTimer(null);
     if (!selectedId) return;
     let cancelled = false;
     fetch(`/api/jobs/${selectedId}/analyze`)
@@ -239,19 +338,96 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
     if (!selectedId || busy || blocked) return;
     setBusy(true);
     setError(null);
+    const controller = new AbortController();
+    callControllers.current.set(endpoint, controller);
+    startCallTimer(endpoint);
     try {
       const res = await fetch(
         `/api/jobs/${selectedId}${endpoint}${refresh ? "?refresh=1" : ""}`,
-        { method: "POST" },
+        {
+          method: "POST",
+          headers: llmHeaders(loadLlmSettings()),
+          signal: controller.signal,
+        },
       );
       const data = (await res.json()) as T & { error?: string };
       if (!res.ok) throw new Error(data.error ?? fallback);
       onSuccess(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : fallback);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Cancelled.");
+      } else {
+        setError(err instanceof Error ? err.message : fallback);
+      }
     } finally {
+      stopCallTimer(endpoint);
       setBusy(false);
     }
+  }
+
+  function cancelButton(endpoint: string, busy: boolean) {
+    if (!busy || callTimer?.endpoint !== endpoint) return null;
+    return (
+      <button
+        onClick={() => cancelCall(endpoint)}
+        className="text-[12px] text-black/50 underline underline-offset-4 hover:text-black transition-colors duration-300"
+      >
+        Cancel
+      </button>
+    );
+  }
+
+  async function testAndSaveKey() {
+    const key = keyValue.trim();
+    const model = keyModel.trim();
+    if (!key || !model) {
+      setKeyError("Key and model are both required.");
+      return;
+    }
+    const baseUrl =
+      keyBaseUrl.trim() ||
+      LLM_PRESETS.find((p) => p.id === keyPresetId)?.baseUrl ||
+      "";
+    const label =
+      LLM_PRESETS.find((p) => p.id === keyPresetId)?.label ?? "Custom";
+    setTestingKey(true);
+    setKeyError(null);
+    try {
+      const res = await fetch("/api/llm/test", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-llm-key": key,
+          "x-llm-model": model,
+          ...(baseUrl ? { "x-llm-base-url": baseUrl } : {}),
+          "x-llm-label": label,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Key check failed");
+      const settings: LlmSettings = {
+        presetId: keyPresetId,
+        label,
+        baseUrl,
+        model,
+        key,
+      };
+      saveLlmSettings(settings);
+      setLlmSettings(settings);
+      setEditingKey(false);
+      setKeyValue("");
+      setKeyError(null);
+    } catch (err) {
+      setKeyError(err instanceof Error ? err.message : "Key check failed");
+    } finally {
+      setTestingKey(false);
+    }
+  }
+
+  function forgetKey() {
+    clearLlmSettings();
+    setLlmSettings(null);
+    setEditingKey(false);
   }
 
   function runAnalysis(refresh: boolean) {
@@ -283,9 +459,14 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
     if (!selectedId || validating) return;
     setValidating(true);
     setTailorError(null);
+    const controller = new AbortController();
+    callControllers.current.set("/validate", controller);
+    startCallTimer("/validate");
     try {
       const res = await fetch(`/api/jobs/${selectedId}/validate`, {
         method: "POST",
+        headers: llmHeaders(loadLlmSettings()),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Validation failed");
@@ -294,8 +475,15 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
       );
       if (refreshed?.sections) setTailored(refreshed);
     } catch (err) {
-      setTailorError(err instanceof Error ? err.message : "Validation failed");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setTailorError("Cancelled.");
+      } else {
+        setTailorError(
+          err instanceof Error ? err.message : "Validation failed",
+        );
+      }
     } finally {
+      stopCallTimer("/validate");
       setValidating(false);
     }
   }
@@ -402,14 +590,13 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
         : "On-site";
 
   return (
-    <div className="bg-white border border-black/10 rounded-[22px] overflow-hidden flex flex-col h-full calm-card">
-      {/* Yellow header */}
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="bg-[#FAFAF7] border-b border-black/10 px-6 py-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-black flex items-center justify-center">
-            <Briefcase className="w-4 h-4 text-yellow" />
+            <Briefcase className="w-4 h-4 text-white" />
           </div>
-          <span className="text-title font-extrabold">Job Detail</span>
+          <span className="text-title font-bold">Job Detail</span>
         </div>
         <button
           onClick={close}
@@ -425,8 +612,8 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
           <div className="flex items-center justify-center h-full px-6">
             <div className="text-center">
               <span className="text-display block mb-4">👋</span>
-              <p className="text-title font-extrabold mb-3">Select a role</p>
-              <p className="text-body font-medium text-text-secondary leading-relaxed">
+              <p className="text-title font-bold mb-3">Select a role</p>
+              <p className="text-body font-medium text-black/55 leading-relaxed">
                 View:
                 <br />
                 &bull; Requirements
@@ -453,7 +640,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                 </span>
               </div>
               <div>
-                <span className="inline-block bg-purple text-white px-2.5 py-1 rounded-full text-label font-extrabold uppercase tracking-widest">
+                <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/10 text-black/55">
                   {job.company.companyType === "STARTUP" ? "Startup" : "MNC"}
                 </span>
               </div>
@@ -461,39 +648,51 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
 
             {/* Job Meta Section */}
             <div>
-              <h2 className="text-headline font-extrabold leading-tight">
+              <h2 className="font-serif-calm text-[32px] leading-tight">
                 {job.title}
               </h2>
-              <p className="text-body font-bold text-text-secondary mt-1">
+              <p className="text-body font-bold text-black/55 mt-1">
                 {job.company.name}
               </p>
             </div>
 
             <hr className="border-t border-black/10" />
 
-            {/* Meta Section */}
-            <div className="space-y-3">
-              {job.location && (
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-4 h-4 shrink-0" />
-                  <span className="text-body font-medium">{job.location}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-3">
-                <Clock className="w-4 h-4 shrink-0" />
-                <span className="text-body font-medium">
-                  {formatDaysAgo(job.postedAt)}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Briefcase className="w-4 h-4 shrink-0" />
-                <span className="text-body font-medium">{workModeLabel}</span>
-              </div>
+            {/* Role facts — everything stored about this posting, no model
+                call needed. Read this before applying. */}
+            <div>
+              <h3 className="font-serif-calm text-[22px] mb-3">Role facts</h3>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+                {(
+                  [
+                    ["Type", enumLabel(job.jobType)],
+                    ["Level", enumLabel(job.experience)],
+                    ["Work mode", workModeLabel],
+                    ["Location", job.location ?? null],
+                    [
+                      "Posted",
+                      job.postedAt ? formatDaysAgo(job.postedAt) : null,
+                    ],
+                    ["Source", enumLabel(job.source)],
+                  ] as [string, string | null][]
+                ).map(([label, value]) =>
+                  value ? (
+                    <div key={label} className="min-w-0">
+                      <dt className="text-[11px] uppercase tracking-[0.12em] text-black/45">
+                        {label}
+                      </dt>
+                      <dd className="text-[13px] truncate" title={value}>
+                        {value}
+                      </dd>
+                    </div>
+                  ) : null,
+                )}
+              </dl>
             </div>
 
             {/* Salary Section */}
             <div className="flex items-center gap-3 p-4 border border-black/10 rounded-[14px] bg-black/[0.03]">
-              <span className="text-title font-extrabold">
+              <span className="text-title font-bold">
                 {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurr)}
               </span>
             </div>
@@ -501,12 +700,12 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
             {/* Skills / Tags Section */}
             {job.skills.length > 0 && (
               <div>
-                <h3 className="text-title font-extrabold mb-3">Skills</h3>
+                <h3 className="text-title font-bold mb-3">Skills</h3>
                 <div className="flex flex-wrap gap-1.5">
                   {job.skills.map((skill) => (
                     <span
                       key={skill}
-                      className="px-2.5 py-1 rounded-full bg-[#F3F3F3] text-label font-bold"
+                      className="px-2.5 py-1 rounded-full bg-black/[0.04] text-[11px] font-medium text-black/60"
                     >
                       {skill}
                     </span>
@@ -515,29 +714,39 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
               </div>
             )}
 
-            {/* About Section */}
+            {/* About Section — full text on demand; apply only after reading */}
             <div>
-              <h3 className="text-title font-extrabold mb-3">About</h3>
-              <p className="text-body font-medium text-text-secondary leading-relaxed line-clamp-4">
+              <h3 className="font-serif-calm text-[22px] mb-3">About</h3>
+              <p
+                className={`text-body font-medium text-black/55 leading-relaxed ${
+                  showFullDesc ? "whitespace-pre-line" : "line-clamp-4"
+                }`}
+              >
                 {job.description}
               </p>
+              <button
+                onClick={() => setShowFullDesc((v) => !v)}
+                className="mt-2 text-[13px] underline underline-offset-4 decoration-black/20 hover:decoration-black transition-all duration-300"
+              >
+                {showFullDesc ? "Show less ↑" : "Read full posting ↓"}
+              </button>
             </div>
 
             {/* AI Analysis Section */}
             <div className="p-4 border border-black/10 rounded-[14px] bg-black/[0.03] space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-title font-extrabold flex items-center gap-2">
+                <h3 className="font-serif-calm text-[22px] flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
                   AI Analysis
                 </h3>
                 {analysis && (
                   <span
-                    className={`px-2.5 py-1 rounded-full text-label font-extrabold uppercase tracking-widest border border-black/10 ${
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/10 bg-white ${
                       analysis.verdict === "STRONG"
-                        ? "bg-green"
+                        ? "text-green-700"
                         : analysis.verdict === "POSSIBLE"
-                          ? "bg-yellow"
-                          : "bg-red text-white"
+                          ? "text-yellow-700"
+                          : "text-red-600"
                     }`}
                   >
                     {analysis.verdict}
@@ -551,7 +760,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                     {analysis.summary}
                   </p>
                   {analysis.verdictReasons.length > 0 && (
-                    <ul className="text-body font-medium text-text-secondary leading-relaxed list-disc pl-5">
+                    <ul className="text-body font-medium text-black/55 leading-relaxed list-disc pl-5">
                       {analysis.verdictReasons.map((r) => (
                         <li key={r}>{r}</li>
                       ))}
@@ -559,13 +768,13 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                   )}
                   {analysis.missingSkills.length > 0 && (
                     <p className="text-body font-medium">
-                      <span className="font-extrabold">Gaps: </span>
+                      <span className="font-bold">Gaps: </span>
                       {analysis.missingSkills.join(", ")}
                     </p>
                   )}
                   {analysis.potentialConcerns.length > 0 && (
                     <p className="text-body font-medium">
-                      <span className="font-extrabold">Concerns: </span>
+                      <span className="font-bold">Concerns: </span>
                       {analysis.potentialConcerns.join("; ")}
                     </p>
                   )}
@@ -576,33 +785,148 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                 <p className="text-body font-bold text-red">{analysisError}</p>
               )}
 
+              {/* BYOK key row — the key lives in this browser only */}
+              {llmSettings && !editingKey ? (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12px] text-black/55 truncate">
+                    {llmSettings.label} · {llmSettings.model} ·{" "}
+                    {maskKey(llmSettings.key)}
+                  </span>
+                  <span className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        setKeyPresetId(llmSettings.presetId);
+                        setKeyBaseUrl(llmSettings.baseUrl);
+                        setKeyModel(llmSettings.model);
+                        setKeyValue("");
+                        setKeyError(null);
+                        setEditingKey(true);
+                      }}
+                      className="text-[12px] text-black/50 underline underline-offset-4 hover:text-black transition-colors duration-300"
+                    >
+                      Change
+                    </button>
+                    <button
+                      onClick={forgetKey}
+                      className="text-[12px] text-black/50 underline underline-offset-4 hover:text-black transition-colors duration-300"
+                    >
+                      Forget
+                    </button>
+                  </span>
+                </div>
+              ) : (
+                <div className="p-3 border border-black/10 rounded-[12px] bg-white space-y-2">
+                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-black/45">
+                    <KeyRound className="w-3.5 h-3.5" />
+                    {llmSettings ? "Change AI key" : "Add your AI key"}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={keyPresetId}
+                      onChange={(e) => {
+                        const preset = LLM_PRESETS.find(
+                          (p) => p.id === e.target.value,
+                        );
+                        setKeyPresetId(e.target.value);
+                        if (preset) setKeyBaseUrl(preset.baseUrl);
+                      }}
+                      className="bg-white border border-black/10 rounded-[12px] px-3 py-2 text-[13px] outline-none focus:border-black/30 transition-colors duration-300"
+                    >
+                      {LLM_PRESETS.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={keyModel}
+                      onChange={(e) => setKeyModel(e.target.value)}
+                      placeholder={
+                        LLM_PRESETS.find((p) => p.id === keyPresetId)
+                          ?.modelPlaceholder ?? "model id"
+                      }
+                      className="bg-white border border-black/10 rounded-[12px] px-3 py-2 text-[13px] outline-none focus:border-black/30 transition-colors duration-300 placeholder:text-black/35"
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    value={keyBaseUrl}
+                    onChange={(e) => setKeyBaseUrl(e.target.value)}
+                    placeholder="Base URL"
+                    className="w-full bg-white border border-black/10 rounded-[12px] px-3 py-2 text-[13px] outline-none focus:border-black/30 transition-colors duration-300 placeholder:text-black/35"
+                  />
+                  <input
+                    type="password"
+                    value={keyValue}
+                    onChange={(e) => setKeyValue(e.target.value)}
+                    placeholder="API key — stays in this browser"
+                    autoComplete="off"
+                    className="w-full bg-white border border-black/10 rounded-[12px] px-3 py-2 text-[13px] outline-none focus:border-black/30 transition-colors duration-300 placeholder:text-black/35"
+                  />
+                  {keyError && (
+                    <p className="text-[13px] font-bold text-red">{keyError}</p>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={testAndSaveKey}
+                      disabled={testingKey}
+                      className="bg-[#111] text-white rounded-full px-5 py-2 text-[13px] font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50"
+                    >
+                      {testingKey ? "Checking…" : "Test & save"}
+                    </button>
+                    {llmSettings && (
+                      <button
+                        onClick={() => {
+                          setEditingKey(false);
+                          setKeyError(null);
+                        }}
+                        className="text-[12px] text-black/50 underline underline-offset-4 hover:text-black transition-colors duration-300"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-black/45">
+                    Key travels per request, never stored or logged server-side.
+                    Without one, the shared default runs instead.
+                  </p>
+                </div>
+              )}
+
               <button
                 onClick={() => runAnalysis(!!analysis)}
-                disabled={analyzing}
-                className="w-full flex items-center justify-center gap-2 bg-black text-white font-extrabold px-4 py-3 rounded-full text-label uppercase tracking-widest transition-all duration-700 disabled:opacity-50"
+                disabled={!mounted || analyzing}
+                className="w-full flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
               >
                 <Sparkles className="w-4 h-4" />
                 {analyzing
-                  ? "Analyzing…"
+                  ? `Analyzing…${timerFor("/analyze")}`
                   : analysis
                     ? "Re-analyze Job"
                     : "Analyze Job"}
               </button>
-              <p className="text-label font-medium text-text-secondary">
-                On-demand only — one model call per job, result is saved and
-                reused. Re-analyze forces a fresh call.
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[12px] font-medium text-black/55">
+                  {llmSettings
+                    ? `Using your ${llmSettings.label} key · ${llmSettings.model}`
+                    : "Using shared default provider"}
+                  {" — one call per job, result saved and reused."}
+                </p>
+                {cancelButton("/analyze", analyzing)}
+              </div>
+              {analysis && <UsageLine meta={analysis} />}
             </div>
 
             {/* Tailored Resume Section */}
             <div className="p-4 border border-black/10 rounded-[14px] bg-black/[0.03] space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-title font-extrabold flex items-center gap-2">
+                <h3 className="font-serif-calm text-[22px] flex items-center gap-2">
                   <FileText className="w-4 h-4" />
                   Tailored Resume
                 </h3>
                 {tailored && (
-                  <span className="px-2.5 py-1 rounded-full text-label font-extrabold uppercase tracking-widest border border-black/10 bg-green">
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/10 bg-white text-green-700">
                     {tailored.sections.reduce((n, s) => n + s.items.length, 0)}{" "}
                     items
                     {tailored.version ? ` · v${tailored.version}` : ""}
@@ -617,14 +941,14 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                 <div className="space-y-4">
                   {tailored.sections.map((section) => (
                     <div key={section.id}>
-                      <p className="text-label font-extrabold uppercase tracking-widest mb-1.5">
+                      <p className="text-[12px] font-bold uppercase tracking-widest mb-1.5">
                         {section.title}
                       </p>
                       <div className="space-y-1.5">
                         {section.items.map((item) => (
                           <div key={item.id} className="flex items-start gap-2">
                             <span
-                              className={`shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-label font-extrabold uppercase border-2 border-black ${CHANGE_STYLES[item.provenance.change]}`}
+                              className={`shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border ${CHANGE_STYLES[item.provenance.change]}`}
                             >
                               {item.provenance.change}
                             </span>
@@ -646,16 +970,16 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
               {tailored && (
                 <div className="p-3 border border-black/10 rounded-[12px] bg-white space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-label font-extrabold uppercase tracking-widest">
+                    <span className="text-[12px] font-bold uppercase tracking-widest">
                       Evidence check
                     </span>
                     <span
-                      className={`px-2.5 py-1 rounded-full text-label font-extrabold uppercase tracking-widest border border-black/10 ${
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/10 bg-white ${
                         tailored.validationStatus === "SEMANTIC_VALID"
-                          ? "bg-green"
+                          ? "text-green-700"
                           : tailored.validationStatus === "SEMANTIC_INVALID"
-                            ? "bg-red text-white"
-                            : "bg-yellow"
+                            ? "text-red-600"
+                            : "text-yellow-700"
                       }`}
                     >
                       {tailored.validationStatus === "SEMANTIC_VALID"
@@ -673,9 +997,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                           key={`${issue.itemId}-${i}`}
                           className="text-body font-medium leading-relaxed"
                         >
-                          <span className="font-extrabold">
-                            [{issue.severity}]
-                          </span>{" "}
+                          <span className="font-bold">[{issue.severity}]</span>{" "}
                           <span className="font-bold">{issue.itemId}</span> —{" "}
                           {issue.explanation}
                         </li>
@@ -692,42 +1014,96 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
 
                   <button
                     onClick={runValidation}
-                    disabled={validating}
-                    className="w-full flex items-center justify-center gap-2 bg-white text-black font-extrabold px-4 py-2.5 rounded-full border border-black/10 text-label uppercase tracking-widest hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
+                    disabled={!mounted || validating}
+                    className="w-full flex items-center justify-center gap-2 bg-white text-black font-medium px-4 py-2.5 rounded-full border border-black/10 text-[13px] hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
                   >
-                    {validating ? "Checking…" : "Check Evidence"}
+                    {validating
+                      ? `Checking…${timerFor("/validate")}`
+                      : "Check Evidence"}
                   </button>
+                  {cancelButton("/validate", validating)}
+                </div>
+              )}
+
+              {/* Keyword gap (Phase 3A): pure read of the saved analysis —
+                  no model call. Shows what the JD asks vs what the resume
+                  evidences, before tailoring. Hidden once tailored. */}
+              {analysis && !tailored && (
+                <div className="p-3 border border-black/10 rounded-[12px] bg-white space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[12px] font-bold uppercase tracking-widest">
+                      Keyword fit
+                    </span>
+                    <span className="text-[12px] font-bold uppercase tracking-widest text-black/55">
+                      {analysis.matchedSkills.length} of{" "}
+                      {analysis.matchedSkills.length +
+                        analysis.missingSkills.length}{" "}
+                      covered
+                    </span>
+                  </div>
+                  {analysis.matchedSkills.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {analysis.matchedSkills.map((s) => (
+                        <span
+                          key={s}
+                          className="px-2.5 py-1 rounded-full bg-black/[0.04] text-[11px] font-medium text-black/60"
+                        >
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {analysis.missingSkills.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {analysis.missingSkills.map((s) => (
+                        <span
+                          key={s}
+                          className="px-2.5 py-1 rounded-full text-[12px] font-bold uppercase tracking-widest border border-black/10 bg-white"
+                        >
+                          {s} · gap
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[12px] font-medium text-black/55">
+                    Tailoring rephrases from your evidence — it never invents
+                    the gaps above.
+                  </p>
                 </div>
               )}
 
               <button
                 onClick={() => runTailor(!!tailored)}
-                disabled={tailoring || !analysis}
-                className="w-full flex items-center justify-center gap-2 bg-black text-white font-extrabold px-4 py-3 rounded-full text-label uppercase tracking-widest transition-all duration-700 disabled:opacity-50"
+                disabled={!mounted || tailoring || !analysis}
+                className="w-full flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
               >
                 <FileText className="w-4 h-4" />
                 {tailoring
-                  ? "Tailoring…"
+                  ? `Tailoring…${timerFor("/tailor")}`
                   : tailored
                     ? "Re-tailor Resume"
                     : "Tailor Resume"}
               </button>
-              <p className="text-label font-medium text-text-secondary">
-                {analysis
-                  ? "Built from your base resume + the analysis above. Every item cites its evidence."
-                  : "Analyze the job first — tailoring builds on the analysis."}
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[12px] font-medium text-black/55">
+                  {analysis
+                    ? "Built from your base resume + the analysis above. Every item cites its evidence."
+                    : "Analyze the job first — tailoring builds on the analysis."}
+                </p>
+                {cancelButton("/tailor", tailoring)}
+              </div>
+              {tailored && <UsageLine meta={tailored} />}
 
               {tailored && tailored.validationStatus === "SEMANTIC_VALID" && (
                 <div className="p-3 border border-black/10 rounded-[12px] bg-white space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-label font-extrabold uppercase tracking-widest">
+                    <span className="text-[12px] font-bold uppercase tracking-widest">
                       PDF + ATS check
                     </span>
                     {tailored.renderStatus === "SUCCESS" && (
                       <a
                         href={`/api/jobs/${selectedId}/pdf/download`}
-                        className="px-2.5 py-1 rounded-full text-label font-extrabold uppercase tracking-widest border border-black/10 bg-green"
+                        className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/30 text-black"
                       >
                         Download
                       </a>
@@ -765,7 +1141,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                       {tailored.atsResult.warnings.slice(0, 6).map((w) => (
                         <li
                           key={w}
-                          className="text-body font-medium text-text-secondary"
+                          className="text-body font-medium text-black/55"
                         >
                           ⚠ {w}
                         </li>
@@ -784,8 +1160,8 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                     onClick={() =>
                       runRender(tailored.renderStatus === "SUCCESS")
                     }
-                    disabled={rendering}
-                    className="w-full flex items-center justify-center gap-2 bg-white text-black font-extrabold px-4 py-2.5 rounded-full border border-black/10 text-label uppercase tracking-widest hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
+                    disabled={!mounted || rendering}
+                    className="w-full flex items-center justify-center gap-2 bg-white text-black font-medium px-4 py-2.5 rounded-full border border-black/10 text-[13px] hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
                   >
                     {rendering
                       ? "Rendering…"
@@ -800,12 +1176,12 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
             {/* Cover Letter Section */}
             <div className="p-4 border border-black/10 rounded-[14px] bg-black/[0.03] space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-title font-extrabold flex items-center gap-2">
+                <h3 className="font-serif-calm text-[22px] flex items-center gap-2">
                   <FileText className="w-4 h-4" />
                   Cover letter
                 </h3>
                 {cover && (
-                  <span className="px-2.5 py-1 rounded-full text-label font-extrabold uppercase tracking-widest border border-black/10 bg-white">
+                  <span className="px-2.5 py-1 rounded-full text-[12px] font-bold uppercase tracking-widest border border-black/10 bg-white">
                     Saved
                   </span>
                 )}
@@ -814,7 +1190,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
               {cover && (
                 <div className="p-3 border border-black/10 rounded-[12px] bg-white space-y-2">
                   {cover.content.subject && (
-                    <p className="text-body font-extrabold leading-relaxed">
+                    <p className="text-body font-bold leading-relaxed">
                       {cover.content.subject}
                     </p>
                   )}
@@ -841,32 +1217,36 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
 
               <button
                 onClick={() => runCover(!!cover)}
-                disabled={covering || !analysis || !tailored}
-                className="w-full flex items-center justify-center gap-2 bg-black text-white font-extrabold px-4 py-3 rounded-full text-label uppercase tracking-widest transition-all duration-700 disabled:opacity-50"
+                disabled={!mounted || covering || !analysis || !tailored}
+                className="w-full flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
               >
                 <FileText className="w-4 h-4" />
                 {covering
-                  ? "Writing…"
+                  ? `Writing…${timerFor("/cover")}`
                   : cover
                     ? "Regenerate letter"
                     : "Write cover letter"}
               </button>
-              <p className="text-label font-medium text-text-secondary">
-                {analysis && tailored
-                  ? "Built from the analysis + tailored resume above. Every claim cites base-resume evidence."
-                  : "Analyze the job and tailor a resume first — the letter builds on both."}
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[12px] font-medium text-black/55">
+                  {analysis && tailored
+                    ? "Built from the analysis + tailored resume above. Every claim cites base-resume evidence."
+                    : "Analyze the job and tailor a resume first — the letter builds on both."}
+                </p>
+                {cancelButton("/cover", covering)}
+              </div>
+              {cover && <UsageLine meta={cover} />}
             </div>
 
             {/* Interview Prep Section */}
             <div className="p-4 border border-black/10 rounded-[14px] bg-black/[0.03] space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-title font-extrabold flex items-center gap-2">
+                <h3 className="font-serif-calm text-[22px] flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
                   Interview prep
                 </h3>
                 {prep && (
-                  <span className="px-2.5 py-1 rounded-full text-label font-extrabold uppercase tracking-widest border border-black/10 bg-white">
+                  <span className="px-2.5 py-1 rounded-full text-[12px] font-bold uppercase tracking-widest border border-black/10 bg-white">
                     Saved
                   </span>
                 )}
@@ -882,7 +1262,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                     ] as const
                   ).map(([title, questions]) => (
                     <div key={title}>
-                      <p className="text-label font-extrabold uppercase tracking-widest mb-1.5">
+                      <p className="text-[12px] font-bold uppercase tracking-widest mb-1.5">
                         {title}
                       </p>
                       <div className="space-y-2.5">
@@ -891,47 +1271,41 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                             key={q.question.slice(0, 48)}
                             className="p-3 border border-black/10 rounded-[12px] bg-white space-y-1.5"
                           >
-                            <p className="text-body font-extrabold leading-relaxed">
+                            <p className="text-body font-bold leading-relaxed">
                               {q.question}
                             </p>
-                            <p className="text-body font-medium text-text-secondary leading-relaxed">
+                            <p className="text-body font-medium text-black/55 leading-relaxed">
                               Why asked: {q.whyAsked}
                             </p>
-                            <ul className="text-body font-medium text-text-secondary leading-relaxed list-disc pl-5">
+                            <ul className="text-body font-medium text-black/55 leading-relaxed list-disc pl-5">
                               {q.answerStructure.map((s) => (
                                 <li key={s.slice(0, 40)}>{s}</li>
                               ))}
                             </ul>
                             {q.followUps.length > 0 && (
-                              <p className="text-body font-medium text-text-secondary leading-relaxed">
+                              <p className="text-body font-medium text-black/55 leading-relaxed">
                                 Follow-ups: {q.followUps.join(" · ")}
                               </p>
                             )}
                             {q.starStory && (
                               <div className="p-2.5 border border-black/10 rounded-[10px] bg-black/[0.03] space-y-1">
-                                <p className="text-label font-extrabold uppercase tracking-widest">
+                                <p className="text-[12px] font-bold uppercase tracking-widest">
                                   STAR story
                                 </p>
                                 <p className="text-body font-medium leading-relaxed">
-                                  <span className="font-extrabold">
-                                    Situation:
-                                  </span>{" "}
+                                  <span className="font-bold">Situation:</span>{" "}
                                   {q.starStory.situation}
                                 </p>
                                 <p className="text-body font-medium leading-relaxed">
-                                  <span className="font-extrabold">Task:</span>{" "}
+                                  <span className="font-bold">Task:</span>{" "}
                                   {q.starStory.task}
                                 </p>
                                 <p className="text-body font-medium leading-relaxed">
-                                  <span className="font-extrabold">
-                                    Action:
-                                  </span>{" "}
+                                  <span className="font-bold">Action:</span>{" "}
                                   {q.starStory.action}
                                 </p>
                                 <p className="text-body font-medium leading-relaxed">
-                                  <span className="font-extrabold">
-                                    Result:
-                                  </span>{" "}
+                                  <span className="font-bold">Result:</span>{" "}
                                   {q.starStory.result}
                                 </p>
                               </div>
@@ -944,7 +1318,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
 
                   {prep.content.toAsk.length > 0 && (
                     <div>
-                      <p className="text-label font-extrabold uppercase tracking-widest mb-1.5">
+                      <p className="text-[12px] font-bold uppercase tracking-widest mb-1.5">
                         Ask them
                       </p>
                       <ul className="text-body font-medium leading-relaxed list-disc pl-5">
@@ -957,7 +1331,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
 
                   {prep.content.gaps.length > 0 && (
                     <div>
-                      <p className="text-label font-extrabold uppercase tracking-widest mb-1.5">
+                      <p className="text-[12px] font-bold uppercase tracking-widest mb-1.5">
                         Honest bridges
                       </p>
                       <div className="space-y-1.5">
@@ -966,7 +1340,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                             key={g.skill}
                             className="text-body font-medium leading-relaxed"
                           >
-                            <span className="font-extrabold">{g.skill}:</span>{" "}
+                            <span className="font-bold">{g.skill}:</span>{" "}
                             {g.bridgeAnswer}
                           </p>
                         ))}
@@ -982,21 +1356,25 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
 
               <button
                 onClick={() => runInterview(!!prep)}
-                disabled={preparing || !analysis || !tailored}
-                className="w-full flex items-center justify-center gap-2 bg-black text-white font-extrabold px-4 py-3 rounded-full text-label uppercase tracking-widest transition-all duration-700 disabled:opacity-50"
+                disabled={!mounted || preparing || !analysis || !tailored}
+                className="w-full flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
               >
                 <Sparkles className="w-4 h-4" />
                 {preparing
-                  ? "Preparing…"
+                  ? `Preparing…${timerFor("/interview")}`
                   : prep
                     ? "Regenerate prep"
                     : "Prepare interview"}
               </button>
-              <p className="text-label font-medium text-text-secondary">
-                {analysis && tailored
-                  ? "Grounded in your evidence. Gaps get honest bridges, never invented stories."
-                  : "Analyze the job and tailor a resume first — prep builds on both."}
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[12px] font-medium text-black/55">
+                  {analysis && tailored
+                    ? "Grounded in your evidence. Gaps get honest bridges, never invented stories."
+                    : "Analyze the job and tailor a resume first — prep builds on both."}
+                </p>
+                {cancelButton("/interview", preparing)}
+              </div>
+              {prep && <UsageLine meta={prep} />}
             </div>
           </div>
         )}
@@ -1008,13 +1386,16 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
           {(decision || liveness) && (
             <div className="flex flex-wrap items-center gap-2">
               {decision && (
-                <span className="px-2.5 py-1 rounded-full text-label font-extrabold uppercase tracking-widest border border-black/10 bg-purple text-white">
+                <span
+                  data-testid="decision-badge"
+                  className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] bg-[#111] text-white"
+                >
                   {decision}
                 </span>
               )}
               {liveness && (
                 <span
-                  className={`px-2.5 py-1 rounded-full text-label font-extrabold uppercase tracking-widest border border-black/10 ${liveness.alive ? "bg-green" : "bg-red text-white"}`}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/10 bg-white ${liveness.alive ? "text-green-700" : "text-red-600"}`}
                   title={liveness.evidence ?? undefined}
                 >
                   {liveness.alive ? "● Live" : "● Closed?"}
@@ -1025,44 +1406,44 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
           <div className="flex gap-3">
             <button
               onClick={() => setJobDecision("OPENED", true)}
-              disabled={deciding}
-              className="flex-1 flex items-center justify-center gap-2 bg-[#111] text-white font-semibold px-4 py-3 rounded-full text-[12px] uppercase tracking-widest transition-all duration-700 disabled:opacity-50"
+              disabled={!mounted || deciding}
+              className="flex-1 flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
             >
-              Open Application
+              Open application
               <ArrowUpRight className="w-4 h-4" />
             </button>
             <button
               onClick={() => setJobDecision("APPLIED")}
-              disabled={deciding}
-              className="flex-1 flex items-center justify-center gap-2 bg-black text-white font-extrabold px-4 py-3 rounded-full border border-black/10 text-label uppercase tracking-widest transition-all duration-700 disabled:opacity-50"
+              disabled={!mounted || deciding}
+              className="flex-1 flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
             >
-              I&apos;ve Applied
+              I&apos;ve applied
             </button>
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => setJobDecision("SAVED")}
-              disabled={deciding}
-              className="flex-1 text-label font-extrabold uppercase tracking-widest px-3 py-2 rounded-full border border-black/10 hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
+              disabled={!mounted || deciding}
+              className="flex-1 text-[13px] font-medium px-3 py-2 rounded-full border border-black/10 hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
             >
               Save
             </button>
             <button
               onClick={() => setJobDecision("SKIPPED")}
-              disabled={deciding}
-              className="flex-1 text-label font-extrabold uppercase tracking-widest px-3 py-2 rounded-full border border-black/10 hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
+              disabled={!mounted || deciding}
+              className="flex-1 text-[13px] font-medium px-3 py-2 rounded-full border border-black/10 hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
             >
               Skip
             </button>
             <button
               onClick={checkLiveness}
-              disabled={checkingLive}
-              className="flex-1 text-label font-extrabold uppercase tracking-widest px-3 py-2 rounded-full border border-black/10 hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
+              disabled={!mounted || checkingLive}
+              className="flex-1 text-[13px] font-medium px-3 py-2 rounded-full border border-black/10 hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
             >
               {checkingLive ? "Checking…" : "Check live"}
             </button>
           </div>
-          <p className="text-label font-medium text-text-secondary">
+          <p className="text-[12px] font-medium text-black/55">
             Opening records OPENED only — confirm with I&apos;ve Applied after
             you submit.
           </p>

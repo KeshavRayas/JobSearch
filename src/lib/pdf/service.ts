@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { canonicalizeTailored } from "@/lib/tailor/canonical";
 import { tailoredResumeSchema } from "@/lib/tailor/contract";
 import { renderLatex } from "@/lib/pdf/latex";
-import { compileLatex, RenderError } from "@/lib/pdf/compile";
+import { renderTypst } from "@/lib/pdf/typst";
+import { compileLatex, compileTypst, RenderError } from "@/lib/pdf/compile";
 import { extractPdfText, runAtsChecks, type AtsResult } from "@/lib/pdf/ats";
 import { getOrCreateDefaultProfile } from "@/lib/matching/profile";
 
@@ -75,18 +76,25 @@ export async function renderPdf(jobId: string): Promise<{
     orderBy: { updatedAt: "desc" },
   });
 
-  const tex = renderLatex(canonical, {
+  const contact = {
     name: fullProfile?.name ?? "Candidate",
     location: (fullProfile?.locations ?? []).join(" / ") || "Bangalore",
     email: fullProfile?.email,
     phone: fullProfile?.phone,
     linkedin: fullProfile?.linkedin,
     github: fullProfile?.github,
-  });
+  };
+
+  // PDF_BACKEND=latex restores the pdflatex path. Typst (WASM, vendored
+  // fonts) is the default: no TeX install, millisecond compiles.
+  const backend = process.env.PDF_BACKEND === "latex" ? "latex" : "typst";
 
   let pdf: Buffer;
   try {
-    ({ pdf } = await compileLatex(tex));
+    ({ pdf } =
+      backend === "typst"
+        ? await compileTypst(renderTypst(canonical, contact))
+        : await compileLatex(renderLatex(canonical, contact)));
   } catch (err) {
     const log = err instanceof RenderError ? err.log : String(err);
     await markFailed(jobId, log.slice(-1000));

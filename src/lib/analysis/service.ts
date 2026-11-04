@@ -8,6 +8,7 @@ import {
 import { getOrCreateDefaultProfile } from "@/lib/matching/profile";
 import { scoreJob } from "@/lib/matching/score";
 import { OpencodeCliProvider } from "@/lib/llm/opencode";
+import { CloudJsonProvider } from "@/lib/llm/cloud";
 import type { LlmProvider } from "@/lib/llm/types";
 import { generateJsonSanitized } from "@/lib/llm/sanitize";
 
@@ -37,7 +38,14 @@ export class EmptyProfileError extends Error {
 let defaultProvider: LlmProvider | null = null;
 
 export function getDefaultProvider(): LlmProvider {
-  if (!defaultProvider) defaultProvider = new OpencodeCliProvider();
+  if (!defaultProvider) {
+    // LLM_PROVIDER=cloud selects the hosted endpoint (works on Vercel).
+    // Anything else keeps the free local OpenCode CLI passthrough.
+    defaultProvider =
+      process.env.LLM_PROVIDER === "cloud"
+        ? new CloudJsonProvider()
+        : new OpencodeCliProvider();
+  }
   return defaultProvider;
 }
 

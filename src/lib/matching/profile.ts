@@ -59,3 +59,19 @@ export async function getOrCreateDefaultProfile(): Promise<
     openToRemote: created.openToRemote,
   };
 }
+
+/**
+ * Full profile row for the settings screen. Creates the default row on first
+ * visit so the editor always has a target to update.
+ */
+export async function getDefaultProfileRow() {
+  const existing = await prisma.profile.findFirst({
+    orderBy: { updatedAt: "desc" },
+  });
+  if (existing) return existing;
+
+  await getOrCreateDefaultProfile();
+  return prisma.profile.findFirstOrThrow({
+    orderBy: { updatedAt: "desc" },
+  });
+}

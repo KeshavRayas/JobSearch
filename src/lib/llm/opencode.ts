@@ -148,18 +148,35 @@ export class OpencodeCliProvider implements LlmProvider {
     systemPrompt: string,
     userPrompt: string,
   ): Promise<unknown> {
-    const message = `${systemPrompt}\n\n---\n\n${userPrompt}`;
-    const output = await this.run(message);
-    const text = collectEventText(output);
-    try {
-      return extractJsonObject(text);
-    } catch (err) {
-      throw new LlmError(
-        this.name,
-        "model did not return parseable JSON",
-        `${String(err)} :: ${text.slice(0, 500)}`,
-      );
+    const base = `${systemPrompt}\n\n---\n\n${userPrompt}`;
+    // Two attempts: some models occasionally answer with prose/tool chatter
+    // and no JSON object. The service-level repair retry cannot run until the
+    // provider returns something, so retry extraction here once.
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const message =
+        attempt === 1
+          ? base
+          : `${base}\n\nIMPORTANT: your previous reply contained no JSON object. Reply with ONLY the requested JSON object, no prose and no tool calls.`;
+      const output = await this.run(message);
+      const text = collectEventText(output);
+      try {
+        return extractJsonObject(text);
+      } catch (err) {
+        console.error(
+          `[llm] no JSON object in reply (attempt ${attempt}/2)${
+            attempt === 2 ? "" : " — retrying once"
+          }`,
+        );
+        if (attempt === 2) {
+          throw new LlmError(
+            this.name,
+            "model did not return parseable JSON after a repair retry",
+            `${String(err)} :: ${text.slice(0, 500)}`,
+          );
+        }
+      }
     }
+    throw new LlmError(this.name, "model returned no JSON");
   }
 
   private run(message: string): Promise<string> {
@@ -170,10 +187,14 @@ export class OpencodeCliProvider implements LlmProvider {
       // go straight to the primary. The prompt itself forbids tool use.
       // Override with OPENCODE_AGENT=<name> to force a specific agent.
       const agent = process.env.OPENCODE_AGENT;
-      const args =
-        agent && agent !== "build"
-          ? ["run", "--format", "json", "--agent", agent, message]
-          : ["run", "--format", "json", message];
+      // Pin the model explicitly so local runs do not depend on whatever
+      // `opencode` happens to have selected globally. Unset keeps the CLI
+      // default, preserving the old behaviour.
+      const model = process.env.OPENCODE_MODEL;
+      const args = ["run", "--format", "json"];
+      if (model && model.trim()) args.push("--model", model.trim());
+      if (agent && agent !== "build") args.push("--agent", agent);
+      args.push(message);
       const child = spawn(cmd, args, {
         shell,
         timeout: timeoutMs(),
@@ -197,14 +218,22 @@ export class OpencodeCliProvider implements LlmProvider {
       );
       child.on("close", (code) => {
         if (code === 0 && stdout.trim()) resolve(stdout);
-        else
+        else {
+          const detail = stderr || stdout;
+          const authFailure =
+            /api_key_expired|authentication_error|invalid.*api key|401/i.test(
+              detail,
+            );
           reject(
             new LlmError(
               this.name,
-              `opencode run exited with code ${code}`,
-              stderr.slice(0, 1000) || stdout.slice(0, 1000),
+              authFailure
+                ? "LLM provider rejected the request (expired or invalid API key). Run `opencode auth login`, or set OPENCODE_MODEL to a model whose provider is authenticated."
+                : `opencode run exited with code ${code}`,
+              detail.slice(0, 1000),
             ),
           );
+        }
       });
     });
   }
