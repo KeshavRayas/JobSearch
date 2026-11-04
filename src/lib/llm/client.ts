@@ -10,6 +10,7 @@ export type LlmPreset = {
   label: string;
   baseUrl: string;
   modelPlaceholder: string;
+  api?: "chat" | "responses";
 };
 
 export const LLM_PRESETS: LlmPreset[] = [
@@ -17,7 +18,8 @@ export const LLM_PRESETS: LlmPreset[] = [
     id: "opencode-go",
     label: "OpenCode Go",
     baseUrl: "https://opencode.ai/inference/go/openai/v1",
-    modelPlaceholder: "opencode-go/muse-spark-1.3-contributor",
+    modelPlaceholder: "muse-spark-1.3-contributor",
+    api: "responses",
   },
   {
     id: "openai",
@@ -64,6 +66,7 @@ export type LlmConnection = {
   baseUrl: string;
   model: string;
   key: string;
+  api?: "chat" | "responses";
 };
 
 export type LlmStore = {
@@ -142,6 +145,7 @@ export function llmHeaders(
     [BYOK_HEADERS.label]: connection.label,
   };
   if (connection.baseUrl) out[BYOK_HEADERS.baseUrl] = connection.baseUrl;
+  if (connection.api) out[BYOK_HEADERS.api] = connection.api;
   return out;
 }
 

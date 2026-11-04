@@ -8,6 +8,7 @@ export const BYOK_HEADERS = {
   model: "x-llm-model",
   baseUrl: "x-llm-base-url",
   label: "x-llm-label",
+  api: "x-llm-api",
 } as const;
 
 export type ByokRequest = {
@@ -15,6 +16,7 @@ export type ByokRequest = {
   model?: string;
   baseUrl?: string;
   label?: string;
+  api?: "chat" | "responses";
 };
 
 /** Pull user-supplied credentials off request headers (empty → undefined). */
@@ -23,11 +25,13 @@ export function readByokHeaders(headers: Pick<Headers, "get">): ByokRequest {
     const v = headers.get(name)?.trim();
     return v ? v : undefined;
   };
+  const api = pick(BYOK_HEADERS.api);
   return {
     key: pick(BYOK_HEADERS.key),
     model: pick(BYOK_HEADERS.model),
     baseUrl: pick(BYOK_HEADERS.baseUrl),
     label: pick(BYOK_HEADERS.label),
+    api: api === "responses" ? "responses" : api ? "chat" : undefined,
   };
 }
 

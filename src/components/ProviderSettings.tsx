@@ -27,6 +27,7 @@ type Draft = {
   baseUrl: string;
   model: string;
   key: string;
+  api?: "chat" | "responses";
 };
 
 function draftFrom(connection?: LlmConnection): Draft {
@@ -38,6 +39,7 @@ function draftFrom(connection?: LlmConnection): Draft {
       baseUrl: connection.baseUrl,
       model: connection.model,
       key: "",
+      api: connection.api,
     };
   }
   return {
@@ -46,6 +48,7 @@ function draftFrom(connection?: LlmConnection): Draft {
     baseUrl: LLM_PRESETS[0].baseUrl,
     model: "",
     key: "",
+    api: LLM_PRESETS[0].api,
   };
 }
 
@@ -118,6 +121,7 @@ export function ProviderSettings() {
         baseUrl,
         model,
         key,
+        api: draft.api,
       };
       const connections = draft.id
         ? store!.connections.map((c) => (c.id === draft.id ? connection : c))
@@ -247,6 +251,7 @@ export function ProviderSettings() {
                     presetId: e.target.value,
                     label: preset?.label ?? draft.label,
                     baseUrl: preset?.baseUrl ?? draft.baseUrl,
+                    api: preset?.api,
                   });
                 }}
               >

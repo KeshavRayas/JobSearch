@@ -30,11 +30,11 @@ export class MissingModelError extends Error {
 export function resolveProvider(
   headers: Pick<Headers, "get">,
 ): ResolvedProvider {
-  const { key, model, baseUrl, label } = readByokHeaders(headers);
+  const { key, model, baseUrl, label, api } = readByokHeaders(headers);
   if (key) {
     if (!model) throw new MissingModelError();
     return {
-      provider: new CloudJsonProvider({ apiKey: key, model, baseUrl }),
+      provider: new CloudJsonProvider({ apiKey: key, model, baseUrl, api }),
       meta: {
         source: "user",
         display: label ? `your ${label} key` : "your key",

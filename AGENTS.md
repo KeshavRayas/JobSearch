@@ -178,6 +178,7 @@ Key files: `src/lib/{sources,ingestion,matching,analysis,tailor,cover,interview,
 DATABASE_URL=postgres...          # required
 LLM_PROVIDER=cloud                # optional; otherwise OpenCode CLI
 LLM_API_KEY / LLM_MODEL / LLM_BASE_URL
+LLM_API_MODE=chat|responses        # responses for OpenCode Muse models
 OPENCODE_MODEL=google/gemini-3.5-flash   # pin the local CLI model
 OPENCODE_BIN / OPENCODE_AGENT
 CRON_SECRET                       # optional; protects cron routes
@@ -187,7 +188,10 @@ RESEND_API_KEY / DIGEST_TO_EMAIL / DIGEST_FROM_EMAIL
 ```
 
 `bun run check:env` is authoritative. The OpenCode CLI’s global model may point
-at an expired credential; pinning `OPENCODE_MODEL` is intentional.
+at an expired credential; pinning `OPENCODE_MODEL` is intentional. OpenCode Go
+Muse Spark models use the Responses API: base URL
+`https://opencode.ai/inference/go/openai/v1`, mode `responses`, model
+`muse-spark-1.3-contributor`.
 
 ## Local deployment status
 
