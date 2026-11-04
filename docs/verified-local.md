@@ -9,7 +9,7 @@ commands; do not trust this file over current output.
 
 - Database: Neon Postgres, 13 migrations applied.
 - Provider: OpenCode CLI, pinned `OPENCODE_MODEL=google/gemini-3.5-flash`.
-- Jobs: 33 visible (Greenhouse 20, Ashby 11, Lever 1, Remotive 1).
+- Jobs: 45 visible (Greenhouse 20, Ashby 23, Lever 1, Remotive 1).
 
 ## Gates
 
@@ -25,7 +25,7 @@ commands; do not trust this file over current output.
 | Prod health | `bun run start` + `GET /api/health` | 200, `ok:true`             |
 | Nightly     | `bun run agent -- nightly`          | 45 candidates, 25 matched  |
 | Setup       | `bun run setup`                     | migrations + seed + report |
-| Audit       | `bun run audit`                     | `ok:true`, 33/33 visible   |
+| Audit       | `bun run audit`                     | `ok:true`, 45/45 visible   |
 
 ## Live flow (fresh job `o1gMoCevGRZR5d0EMyXUE`)
 
