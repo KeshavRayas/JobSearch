@@ -8,6 +8,11 @@ import {
   CoverValidationError,
 } from "@/lib/cover/service";
 import { LlmError } from "@/lib/llm/types";
+import {
+  resolveProvider,
+  usageOf,
+  MissingModelError,
+} from "@/lib/llm/userKey";
 
 type Params = Promise<{ id: string }>;
 
@@ -35,8 +40,12 @@ export async function POST(req: Request, ctx: { params: Params }) {
       const existing = await getCoverLetter(id);
       if (existing) return Response.json({ ...existing, cached: true });
     }
-    const { cover } = await generateCoverLetter(id);
-    return Response.json({ ...cover, cached: false }, { status: 201 });
+    const { provider, meta } = resolveProvider(req.headers);
+    const { cover } = await generateCoverLetter(id, provider);
+    return Response.json(
+      { ...cover, cached: false, usage: usageOf(provider), provider: meta },
+      { status: 201 },
+    );
   } catch (err) {
     if (
       err instanceof NeedsAnalysisError ||
@@ -44,6 +53,9 @@ export async function POST(req: Request, ctx: { params: Params }) {
       err instanceof EmptyResumeError
     ) {
       return Response.json({ error: err.message }, { status: 422 });
+    }
+    if (err instanceof MissingModelError) {
+      return Response.json({ error: err.message }, { status: 400 });
     }
     if (err instanceof CoverValidationError || err instanceof LlmError) {
       return Response.json({ error: err.message }, { status: 502 });

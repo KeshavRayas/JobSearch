@@ -6,6 +6,11 @@ import {
   SemanticValidationError,
 } from "@/lib/tailor/validateSemantic";
 import { LlmError } from "@/lib/llm/types";
+import {
+  resolveProvider,
+  usageOf,
+  MissingModelError,
+} from "@/lib/llm/userKey";
 
 type Params = Promise<{ id: string }>;
 
@@ -43,11 +48,18 @@ export async function POST(req: Request, ctx: { params: Params }) {
         // No tailored row yet — fall through to run validation (404 below).
       }
     }
-    const { status, result } = await validateTailored(id);
-    return Response.json({ status, result, cached: false }, { status: 201 });
+    const { provider, meta } = resolveProvider(req.headers);
+    const { status, result } = await validateTailored(id, provider);
+    return Response.json(
+      { status, result, cached: false, usage: usageOf(provider), provider: meta },
+      { status: 201 },
+    );
   } catch (err) {
     if (err instanceof NothingToValidateError) {
       return Response.json({ error: err.message }, { status: 422 });
+    }
+    if (err instanceof MissingModelError) {
+      return Response.json({ error: err.message }, { status: 400 });
     }
     if (err instanceof SemanticValidationError || err instanceof LlmError) {
       return Response.json({ error: err.message }, { status: 502 });

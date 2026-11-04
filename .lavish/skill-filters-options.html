@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skill filters — pick a better set</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{--paper:#FAFAF7;--ink:#111;--muted:rgba(17,17,17,.55);--line:rgba(17,17,17,.08);--card:#fff;--ease:cubic-bezier(.16,1,.3,1)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:880px;margin:0 auto;padding:56px 24px 80px}
+.eyebrow{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);text-align:center}
+h1{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:clamp(36px,5vw,56px);line-height:1.02;text-align:center;margin:12px 0 8px;letter-spacing:-.02em}
+.sub{text-align:center;color:var(--muted);font-size:14px;max-width:600px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px;transition:transform 900ms var(--ease),box-shadow 900ms var(--ease)}
+.card:hover{transform:translateY(-4px);box-shadow:0 20px 50px -20px rgba(0,0,0,.18)}
+.pill{display:inline-block;border:1px solid rgba(17,17,17,.12);border-radius:999px;padding:6px 14px;font-size:12px;font-weight:500;color:rgba(17,17,17,.7);white-space:nowrap;margin:3px}
+.pill.on{background:#111;border-color:#111;color:#fff}
+.pill.bad{opacity:.55;text-decoration:line-through}
+.pill.good{border-color:rgba(17,17,17,.3)}
+.count{font-size:11px;color:var(--muted);font-weight:400}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:720px){.grid2{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;min-width:0;overflow-wrap:anywhere}
+.badge{display:inline-block;font-size:11px;font-weight:600;border-radius:999px;padding:2px 10px;border:1px solid var(--line)}
+.badge.drop{background:#111;color:#fff;border-color:#111}
+.badge.keep{border-color:rgba(17,17,17,.3)}
+.badge.generic{background:#F4F4F1;color:var(--muted)}
+h2{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:28px;margin:40px 0 8px}
+h3{font-family:"Instrument Serif",Georgia,serif;font-weight:400;font-size:22px;margin:0 0 6px}
+.muted{color:var(--muted);font-size:13px;line-height:1.6}
+.opt-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.opt-id{font-size:11px;font-weight:600;letter-spacing:.1em;background:#111;color:#fff;border-radius:999px;padding:3px 10px}
+.rec{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#0a6b2d;background:#e6f4ea;border-radius:999px;padding:3px 10px}
+.proscons{font-size:13px;line-height:1.6;margin:10px 0 0;padding-left:18px}
+.proscons li{margin-bottom:4px}
+.cost{font-size:12px;background:#F4F4F1;border-radius:12px;padding:8px 12px;margin-top:10px;color:rgba(17,17,17,.7)}
+form.question{margin-top:12px}
+label.choice{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:14px;margin-bottom:8px;cursor:pointer;background:#fff}
+label.choice:hover{border-color:#111}
+input[type=radio],input[type=checkbox]{width:18px;height:18px;accent-color:#111;margin-top:2px;flex-shrink:0}
+button.queue{background:#111;color:#fff;border:1px solid #111;border-radius:999px;padding:10px 22px;font-size:13px;font-weight:600;cursor:pointer;transition:transform 600ms var(--ease)}
+button.queue:hover{transform:translateY(-1px)}
+textarea{width:100%;border:1px solid var(--line);border-radius:14px;padding:10px 12px;font-family:Inter,sans-serif;font-size:13px;background:#fff}
+.note{font-size:12px;color:var(--muted)}
+.code{font-family:ui-monospace,monospace;font-size:12px;background:#F4F4F1;border-radius:8px;padding:2px 6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="eyebrow">54 active jobs · Calm Focus · Skills audit</div>
+<h1>Those skill pills are lying to you.</h1>
+<p class="sub">Current list is just the first 12 skills alphabetically (<span class="code">ALL_SKILLS.slice(0,12)</span>). Three return zero jobs. One matches 89% of jobs. The skills people actually hire for — Python, Go, Java, Kubernetes — are hidden.</p>
+
+<h2>What you have now</h2>
+<p class="muted">Counts = jobs matching that skill today (54 active total). Screenshot matches this list exactly.</p>
+<div class="card" style="padding:8px 16px 16px">
+<table>
+<thead><tr><th>Skill</th><th>Jobs</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>.NET</td><td>1</td><td><span class="badge drop">Drop — 1 job</span></td></tr>
+<tr><td>A/B Testing</td><td>2</td><td><span class="badge drop">Drop — niche</span></td></tr>
+<tr><td>AWS</td><td>13</td><td><span class="badge keep">Keep candidate</span></td></tr>
+<tr><td>Algorithms</td><td>9</td><td><span class="badge generic">Generic — drop</span></td></tr>
+<tr><td>Artificial Intelligence</td><td>48 / 54</td><td><span class="badge generic">Too broad — drop as filter</span></td></tr>
+<tr><td>Azure</td><td>13</td><td><span class="badge keep">Keep candidate</span></td></tr>
+<tr><td>Backend</td><td>22</td><td><span class="badge generic">Generic — drop</span></td></tr>
+<tr><td>C#</td><td>0</td><td><span class="badge drop">Drop — 0 jobs</span></td></tr>
+<tr><td>C++</td><td>0</td><td><span class="badge drop">Drop — 0 jobs</span></td></tr>
+<tr><td>CI/CD</td><td>13</td><td><span class="badge keep">Keep candidate</span></td></tr>
+<tr><td>Chatbot</td><td>0</td><td><span class="badge drop">Drop — 0 jobs</span></td></tr>
+<tr><td>Computer Science</td><td>28</td><td><span class="badge generic">Generic — drop</span></td></tr>
+</tbody>
+</table>
+<p class="muted" style="margin:12px 4px 0">Also hidden today: Python 32, Go 22, Java 18, Kubernetes 15, SQL 15, GCP 12, TypeScript 8, React 6, Docker 9, PostgreSQL 9. Hardcoded <span class="code">React</span> quick-pill only matches 6 jobs.</p>
+</div>
+
+<h2>Pick a direction</h2>
+<p class="muted">Four mutually exclusive options. All keep the Calm Focus rules: single centered column, hairlines only, 900ms <span class="code">cubic-bezier(.16,1,.3,1)</span>, max 3–4 pills on top. Annotate any card to ask about it.</p>
+
+<div class="grid2">
+<div class="card">
+<div class="opt-head"><span class="opt-id">A</span><h3>Pure frequency Top 12</h3></div>
+<div><span class="pill good">Python <span class="count">32</span></span><span class="pill good">Go <span class="count">22</span></span><span class="pill good">Java <span class="count">18</span></span><span class="pill good">Kubernetes <span class="count">15</span></span><span class="pill good">SQL <span class="count">15</span></span><span class="pill good">AWS <span class="count">13</span></span><span class="pill good">Azure <span class="count">13</span></span><span class="pill good">CI/CD <span class="count">13</span></span><span class="pill good">GCP <span class="count">12</span></span><span class="pill good">Docker <span class="count">9</span></span><span class="pill good">TypeScript <span class="count">8</span></span><span class="pill good">React <span class="count">6</span></span></div>
+<ul class="proscons"><li><b>Pro:</b> zero code curation, always fresh, every pill returns jobs.</li><li><b>Con:</b> still surfaces <i>Artificial Intelligence (48)</i> at #1 if you don't stoplist it — one pill matches everything.</li></ul>
+<div class="cost">Cost: 1 query on page load (skill counts). ~30 min change: replace <span class="code">slice(0,12)</span> with count query.</div>
+</div>
+
+<div class="card" style="border-color:#111">
+<div class="opt-head"><span class="opt-id">B</span><h3>Role families</h3><span class="rec">Calmest</span></div>
+<div class="muted" style="margin-bottom:6px">FRONTEND</div>
+<div><span class="pill good">React 6</span><span class="pill good">TypeScript 8</span><span class="pill good">Next.js 3</span></div>
+<div class="muted" style="margin:8px 0 6px">BACKEND</div>
+<div><span class="pill good">Python 32</span><span class="pill good">Go 22</span><span class="pill good">Java 18</span><span class="pill good">Node.js 7</span></div>
+<div class="muted" style="margin:8px 0 6px">INFRA / DATA</div>
+<div><span class="pill good">AWS 13</span><span class="pill good">Kubernetes 15</span><span class="pill good">Docker 9</span><span class="pill good">SQL 15</span></div>
+<div class="muted" style="margin:8px 0 6px">AI / ML</div>
+<div><span class="pill good">PyTorch 8</span><span class="pill good">LLM 8</span><span class="pill good">RAG 4</span></div>
+<ul class="proscons"><li><b>Pro:</b> fewest pills, beginner-friendly, matches how people think (“I’m backend”).</li><li><b>Con:</b> needs a hand-maintained family map; new hot skill waits for curation.</li></ul>
+<div class="cost">Cost: small mapping file + family filter logic (OR within family, AND across). ~1–2 hrs.</div>
+</div>
+
+<div class="card" style="border-color:#111">
+<div class="opt-head"><span class="opt-id">C</span><h3>Signal-first Top 12</h3><span class="rec">Recommended</span></div>
+<div><span class="pill good">Python <span class="count">32</span></span><span class="pill good">Go <span class="count">22</span></span><span class="pill good">Java <span class="count">18</span></span><span class="pill good">Kubernetes <span class="count">15</span></span><span class="pill good">SQL <span class="count">15</span></span><span class="pill good">AWS <span class="count">13</span></span><span class="pill good">GCP <span class="count">12</span></span><span class="pill good">PostgreSQL <span class="count">9</span></span><span class="pill good">TypeScript <span class="count">8</span></span><span class="pill good">React <span class="count">6</span></span><span class="pill good">Rust <span class="count">6</span></span><span class="pill good">Redis <span class="count">4</span></span></div>
+<p class="muted">Frequency <i>minus</i> stoplist: AI, SDE, Computer Science, Backend, Frontend, Algorithms, Data Structures never appear as pills (they stay searchable).</p>
+<ul class="proscons"><li><b>Pro:</b> every pill discriminates; counts shown so no zero-click surprises.</li><li><b>Con:</b> needs stoplist maintained once (~10 generic terms).</li></ul>
+<div class="cost">Cost: same count query as A + 10-line stoplist. ~45 min. My recommendation — evidence supports it.</div>
+</div>
+
+<div class="card">
+<div class="opt-head"><span class="opt-id">D</span><h3>Minimal — search + My stack</h3></div>
+<div><span class="pill on">All</span><span class="pill">Remote</span><span class="pill">Full-time</span><span class="pill">My stack</span></div>
+<p class="muted">Remove Skills from <i>More filters</i> entirely. Skills live in the search box + a single <i>My stack</i> pill seeded from your Profile skills. Purest Calm Focus.</p>
+<ul class="proscons"><li><b>Pro:</b> fewest UI elements, zero stale lists, personalised.</li><li><b>Con:</b> discovery suffers — you can't browse “what Go roles exist?” without typing.</li></ul>
+<div class="cost">Cost: Profile → filter wiring. ~1 hr. Best if you mainly filter by your own resume.</div>
+</div>
+</div>
+
+<h2>Choose</h2>
+<div class="card">
+<form data-lavish-question="skill-direction" onsubmit="event.preventDefault(); const choice = new FormData(event.currentTarget).get('direction'); const notes = event.currentTarget.querySelector('textarea').value; if (choice) window.lavish.queuePrompt('Implement skill filter direction ' + choice + (notes ? '. Notes: ' + notes : ''), { tag: 'choice', text: 'Skill direction: ' + choice, element: event.currentTarget, data: { question: 'skill-direction', answer: choice, notes: notes } });">
+<div style="display:grid;gap:0">
+<label class="choice"><input type="radio" name="direction" value="A-frequency"><span><b>A — Pure frequency.</b> <span class="muted">Auto Top 12 by count.</span></span></label>
+<label class="choice"><input type="radio" name="direction" value="B-families"><span><b>B — Role families.</b> <span class="muted">Frontend / Backend / Infra / AI groups.</span></span></label>
+<label class="choice"><input type="radio" name="direction" value="C-signal" checked><span><b>C — Signal-first Top 12 with stoplist + counts (Recommended).</b> <span class="muted">Python, Go, Java, K8s, SQL, AWS, GCP, Postgres, TS, React, Rust, Redis.</span></span></label>
+<label class="choice"><input type="radio" name="direction" value="D-minimal"><span><b>D — Minimal.</b> <span class="muted">Search + My-stack only, no skill grid.</span></span></label>
+</div>
+<div style="margin:12px 0"><textarea rows="2" placeholder="Optional notes — e.g. always keep React, hide Rust…"></textarea></div>
+<button class="queue" type="submit">Queue this answer</button>
+<span class="note" style="margin-left:10px">Queues once — you can still change your mind before Send.</span>
+</form>
+</div>
+
+<h2>Force-include / force-exclude (optional)</h2>
+<p class="muted">Tick individual skills you insist on keeping or killing regardless of direction. Queued as one tracked batch — I will account for every ID.</p>
+<div class="card">
+<form data-lavish-question="tracked-review" onsubmit="event.preventDefault(); const selected = [...event.currentTarget.querySelectorAll('input[name=items]:checked')].map((input) => ({ id: input.value, label: input.dataset.label, disposition: input.dataset.disposition })); if (selected.length) window.lavish.queuePrompt('Act on every selected skill and return an item-by-item receipt. Account for every submitted ID before reporting completion.', { tag: 'tracked-batch', text: 'Apply ' + selected.length + ' selected skill overrides', element: event.currentTarget, data: { items: selected } });">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+<label class="choice"><input type="checkbox" name="items" value="K-Python" data-label="Keep Python (32 jobs)" data-disposition="must-keep"><span>Keep Python — 32 jobs</span></label>
+<label class="choice"><input type="checkbox" name="items" value="K-Go" data-label="Keep Go (22 jobs)" data-disposition="must-keep"><span>Keep Go — 22 jobs</span></label>
+<label class="choice"><input type="checkbox" name="items" value="K-TypeScript" data-label="Keep TypeScript (8 jobs)" data-disposition="must-keep"><span>Keep TypeScript — 8</span></label>
+<label class="choice"><input type="checkbox" name="items" value="K-React" data-label="Keep React (6 jobs)" data-disposition="must-keep"><span>Keep React — 6</span></label>
+<label class="choice"><input type="checkbox" name="items" value="X-AI" data-label="Hide Artificial Intelligence (48, too broad)" data-disposition="must-drop"><span>Hide AI — too broad</span></label>
+<label class="choice"><input type="checkbox" name="items" value="X-CS" data-label="Hide Computer Science (28, generic)" data-disposition="must-drop"><span>Hide Computer Science</span></label>
+<label class="choice"><input type="checkbox" name="items" value="X-CSharp" data-label="Hide C# (0 jobs)" data-disposition="must-drop"><span>Hide C# — 0 jobs</span></label>
+<label class="choice"><input type="checkbox" name="items" value="X-Chatbot" data-label="Hide Chatbot (0 jobs)" data-disposition="must-drop"><span>Hide Chatbot — 0 jobs</span></label>
+</div>
+<div style="margin-top:12px"><button class="queue" type="submit">Queue selected overrides</button></div>
+</form>
+</div>
+
+<p class="note" style="margin-top:24px;text-align:center">Design source: (2) matched this project's own Calm Focus system — paper #FAFAF7, hairlines, Instrument Serif + Inter, calm-card/pill, 900ms ease. No DaisyUI — this artifact mocks your app's UI.</p>
+</div>
+</body>
+</html>

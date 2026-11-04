@@ -25,7 +25,7 @@ export function JobCard({
       <div className="text-[11px] uppercase tracking-[0.12em] text-black/45">
         {job.company.name}
       </div>
-      <h3 className="font-serif-calm text-2xl leading-tight mt-2 group-hover:translate-x-1 transition-transform duration-700">
+      <h3 className="font-serif-calm text-2xl leading-tight mt-2 group-hover:translate-x-1 transition-transform duration-300">
         {job.title}
       </h3>
       <div className="text-[13px] text-black/55 mt-2">

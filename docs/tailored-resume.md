@@ -63,11 +63,19 @@ new-metric/combined/JD-inference all covered at contract level).
 ## PDF + ATS checks (Phase 2.4, no model calls)
 
 ```text
-SEMANTIC_VALID → canonicalize → renderLatex → pdflatex → PDF (storage/pdfs/)
+SEMANTIC_VALID → canonicalize → render → PDF (storage/pdfs/)
   → pdfjs-dist extract → runAtsChecks → persist → UI checklist + download
 POST /api/jobs/:id/pdf (422 unless SEMANTIC_VALID; render failures persist
 FAILED without touching content). ATS warnings never block the PDF.
 ```
+
+Renderer: Typst via WASM (`src/lib/pdf/typst.ts` emits data + `#import`
+against `assets/resume-template.typ`, compiled by `compileTypst` in
+`src/lib/pdf/compile.ts`; Libertinus Serif vendored in `assets/fonts` —
+no TeX install, no network, ~0.5s compiles). All presentation lives in the
+template file — TS only serializes strings (backslash + quote escaping),
+so template tweaks never touch code. `PDF_BACKEND=latex`
+restores the legacy pdflatex path (`renderLatex` + `compileLatex`).
 
 Separate state fields (no mega-enum): `renderStatus` (PENDING/SUCCESS/FAILED),
 `atsStatus` (PENDING/CHECKED) + `atsResult` + `pdfPath`. Postgres stays

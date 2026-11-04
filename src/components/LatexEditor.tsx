@@ -8,7 +8,6 @@ import {
   Download,
   Loader2,
   Check,
-  FileText,
   Briefcase,
 } from "lucide-react";
 import Link from "next/link";
@@ -101,21 +100,18 @@ export function LatexEditor({
   }
 
   return (
-    <div className="h-full flex flex-col bg-surface">
+    <div className="h-full flex flex-col bg-[#FAFAF7] text-[#111]">
       {/* Header */}
-      <div className="bg-yellow border-b-4 border-black px-6 py-4 shrink-0 flex items-center justify-between">
+      <div className="bg-white border-b border-black/10 px-6 py-4 shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="w-9 h-9 rounded-full bg-black flex items-center justify-center shrink-0 hover:opacity-90 transition-[150ms]"
+            className="font-serif-calm text-xl shrink-0"
+            title="Job Search home"
           >
-            <Briefcase className="w-4 h-4 text-yellow" />
+            <Briefcase className="w-4 h-4" />
           </Link>
-          <Link
-            href="/resumes"
-            className="px-3 py-1.5 rounded-full border-2 border-black text-label font-bold hover:bg-black hover:text-white transition-[150ms] flex items-center gap-1"
-          >
-            <FileText className="w-3.5 h-3.5" />
+          <Link href="/resumes" className="calm-pill">
             Resumes
           </Link>
           <input
@@ -125,15 +121,15 @@ export function LatexEditor({
               setTitle(e.target.value);
               scheduleSave();
             }}
-            className="bg-transparent text-title font-extrabold border-none outline-none w-64 placeholder:text-text-secondary"
-            placeholder="Resume Title"
+            className="bg-transparent font-serif-calm text-xl outline-none w-64 placeholder:text-black/35"
+            placeholder="Resume title"
           />
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={save}
             disabled={saving}
-            className="flex items-center justify-center gap-2 bg-black text-white font-extrabold px-6 py-2.5 rounded-full border-3 border-black text-label uppercase tracking-widest hover:opacity-90 transition-[150ms] disabled:opacity-50"
+            className="bg-[#111] text-white rounded-full px-6 py-2.5 text-[13px] font-medium transition-all duration-500 hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {saving ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -142,12 +138,9 @@ export function LatexEditor({
             ) : (
               <Save className="w-4 h-4" />
             )}
-            {saving ? "Saving..." : saved ? "Saved" : "Save"}
+            {saving ? "Saving…" : saved ? "Saved" : "Save"}
           </button>
-          <button
-            onClick={handleDownload}
-            className="flex items-center justify-center gap-2 bg-green text-black font-extrabold px-6 py-2.5 rounded-full border-3 border-black brutal-shadow-sm brutal-hover text-label uppercase tracking-widest"
-          >
+          <button onClick={handleDownload} className="calm-pill">
             <Download className="w-4 h-4" />
             Download .tex
           </button>
@@ -157,21 +150,21 @@ export function LatexEditor({
       {/* Split editor */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left: source editor */}
-        <div className="flex-1 flex flex-col border-r-2 border-black">
-          <div className="bg-black text-white px-4 py-2 text-label font-bold uppercase tracking-widest">
+        <div className="flex-1 flex flex-col border-r border-black/10">
+          <div className="px-4 py-2 text-[11px] uppercase tracking-[0.12em] text-black/45 border-b border-black/10">
             Source
           </div>
           <textarea
             value={source}
             onChange={(e) => handleSourceChange(e.target.value)}
-            className="flex-1 w-full border-none outline-none resize-none p-4 text-body font-mono leading-relaxed bg-surface"
+            className="flex-1 w-full border-none outline-none resize-none p-4 text-[13px] font-mono leading-relaxed bg-white"
             spellCheck={false}
           />
         </div>
 
         {/* Right: preview */}
-        <div className="flex-1 flex flex-col">
-          <div className="bg-black text-white px-4 py-2 text-label font-bold uppercase tracking-widest">
+        <div className="flex-1 flex flex-col bg-white">
+          <div className="px-4 py-2 text-[11px] uppercase tracking-[0.12em] text-black/45 border-b border-black/10">
             Preview
           </div>
           <LatexPreview source={source} />

@@ -7,6 +7,11 @@ import {
   TailorValidationError,
 } from "@/lib/tailor/service";
 import { LlmError } from "@/lib/llm/types";
+import {
+  resolveProvider,
+  usageOf,
+  MissingModelError,
+} from "@/lib/llm/userKey";
 
 type Params = Promise<{ id: string }>;
 
@@ -34,11 +39,23 @@ export async function POST(req: Request, ctx: { params: Params }) {
       const existing = await getTailoredResume(id);
       if (existing) return Response.json({ ...existing, cached: true });
     }
-    const { tailored } = await tailorResume(id);
-    return Response.json({ ...tailored, cached: false }, { status: 201 });
+    const { provider, meta } = resolveProvider(req.headers);
+    const { tailored } = await tailorResume(id, provider);
+    return Response.json(
+      {
+        ...tailored,
+        cached: false,
+        usage: usageOf(provider),
+        provider: meta,
+      },
+      { status: 201 },
+    );
   } catch (err) {
     if (err instanceof NeedsAnalysisError || err instanceof EmptyResumeError) {
       return Response.json({ error: err.message }, { status: 422 });
+    }
+    if (err instanceof MissingModelError) {
+      return Response.json({ error: err.message }, { status: 400 });
     }
     if (err instanceof TailorValidationError || err instanceof LlmError) {
       return Response.json({ error: err.message }, { status: 502 });

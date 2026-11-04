@@ -8,6 +8,11 @@ import {
 } from "@/lib/analysis/service";
 import { LlmError } from "@/lib/llm/types";
 import { logResolveCommand } from "@/lib/llm/opencode";
+import {
+  resolveProvider,
+  usageOf,
+  MissingModelError,
+} from "@/lib/llm/userKey";
 
 type Params = Promise<{ id: string }>;
 
@@ -36,14 +41,21 @@ export async function POST(req: Request, ctx: { params: Params }) {
       const existing = await getAnalysis(id);
       if (existing) return Response.json({ ...existing, cached: true });
     }
-    const { analysis } = await analyzeJob(id);
-    return Response.json({ ...analysis, cached: false }, { status: 201 });
+    const { provider, meta } = resolveProvider(req.headers);
+    const { analysis } = await analyzeJob(id, provider);
+    return Response.json(
+      { ...analysis, cached: false, usage: usageOf(provider), provider: meta },
+      { status: 201 },
+    );
   } catch (err) {
     if (err instanceof JobNotFoundError) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
     if (err instanceof EmptyProfileError) {
       return Response.json({ error: err.message }, { status: 422 });
+    }
+    if (err instanceof MissingModelError) {
+      return Response.json({ error: err.message }, { status: 400 });
     }
     if (err instanceof AnalysisValidationError || err instanceof LlmError) {
       return Response.json({ error: err.message }, { status: 502 });

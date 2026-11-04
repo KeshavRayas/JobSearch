@@ -15,7 +15,9 @@ export const JobSource = {
   REMOTIVE: 'REMOTIVE',
   GREENHOUSE: 'GREENHOUSE',
   LEVER: 'LEVER',
-  ASHBY: 'ASHBY'
+  ASHBY: 'ASHBY',
+  WORKDAY: 'WORKDAY',
+  MANUAL: 'MANUAL'
 } as const
 
 export type JobSource = (typeof JobSource)[keyof typeof JobSource]

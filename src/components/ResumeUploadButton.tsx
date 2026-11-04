@@ -864,7 +864,7 @@ export function ResumeUploadButton({
           <button
             onClick={handleClick}
             disabled={loading}
-            className="w-10 h-10 rounded-full border-3 border-black flex items-center justify-center hover:bg-black hover:text-white transition-[150ms] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center text-black/60 hover:text-black hover:border-black/30 transition-all duration-500 disabled:opacity-50"
             title="Upload PDF or .tex"
           >
             {loading ? (
@@ -875,7 +875,7 @@ export function ResumeUploadButton({
           </button>
           <button
             onClick={() => setShowTextModal(true)}
-            className="text-label font-bold text-text-secondary hover:text-black transition-[150ms] px-1"
+            className="text-black/40 hover:text-black transition-colors duration-300 px-1"
             title="Paste resume text"
           >
             <FileText className="w-4 h-4" />
@@ -886,7 +886,7 @@ export function ResumeUploadButton({
           <button
             onClick={handleClick}
             disabled={loading}
-            className="flex items-center justify-center gap-2 bg-green text-black font-extrabold px-6 py-2.5 rounded-full border-3 border-black brutal-shadow-sm brutal-hover text-label uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+            className="calm-pill inline-flex items-center gap-1.5 disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -897,7 +897,7 @@ export function ResumeUploadButton({
           </button>
           <button
             onClick={() => setShowTextModal(true)}
-            className="text-label font-bold text-text-secondary hover:text-black underline underline-offset-4 transition-[150ms]"
+            className="text-[13px] text-black/50 underline underline-offset-4 decoration-black/20 hover:text-black hover:decoration-black transition-all duration-500"
           >
             or paste text
           </button>
@@ -905,17 +905,15 @@ export function ResumeUploadButton({
       )}
 
       {showTextModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-surface border-4 border-black rounded-[24px] brutal-shadow-lg p-6 w-full max-w-2xl mx-4">
-            <h3 className="text-title font-extrabold mb-4">
-              Paste Resume Text
-            </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
+          <div className="bg-white border border-black/10 rounded-[22px] p-6 w-full max-w-2xl mx-4 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.18)]">
+            <h3 className="font-serif-calm text-2xl mb-4">Paste resume text</h3>
             <textarea
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
-              placeholder="Paste your resume content here... (sections will be detected automatically)"
+              placeholder="Paste your resume content here… sections are detected automatically."
               rows={12}
-              className="w-full border-3 border-black rounded-[12px] px-4 py-3 text-body font-medium bg-surface placeholder:text-text-secondary outline-none resize-y"
+              className="w-full bg-white border border-black/10 rounded-[14px] px-4 py-3 text-[14px] outline-none focus:border-black/30 transition-colors duration-500 placeholder:text-black/35 resize-y"
             />
             <div className="flex items-center justify-end gap-3 mt-4">
               <button
@@ -923,13 +921,13 @@ export function ResumeUploadButton({
                   setShowTextModal(false);
                   setPasteText("");
                 }}
-                className="px-5 py-2.5 rounded-full border-3 border-black text-label font-extrabold uppercase tracking-widest hover:bg-black hover:text-white transition-[150ms]"
+                className="calm-pill"
               >
                 Cancel
               </button>
               <button
                 onClick={handlePasteSubmit}
-                className="px-5 py-2.5 rounded-full border-3 border-black bg-green text-label font-extrabold uppercase tracking-widest brutal-shadow-sm hover:opacity-90 transition-[150ms]"
+                className="bg-[#111] text-white rounded-full px-5 py-2.5 text-[13px] font-medium transition-all duration-500 hover:opacity-90"
               >
                 Parse
               </button>
@@ -939,19 +937,18 @@ export function ResumeUploadButton({
       )}
 
       {showNameDialog && pendingData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-surface border-4 border-black rounded-[24px] brutal-shadow-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-title font-extrabold mb-2">Name Your Resume</h3>
-            <p className="text-body font-medium text-text-secondary mb-4">
-              This resume will be saved and available when creating a new
-              resume.
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
+          <div className="bg-white border border-black/10 rounded-[22px] p-6 w-full max-w-md mx-4 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.18)]">
+            <h3 className="font-serif-calm text-2xl mb-2">Name your resume</h3>
+            <p className="text-[14px] text-black/55 mb-4">
+              It will be saved and available when creating a new resume.
             </p>
             <input
               type="text"
               value={resumeName}
               onChange={(e) => setResumeName(e.target.value)}
               placeholder="Resume name"
-              className="w-full border-3 border-black rounded-[12px] px-4 py-3 text-body font-medium bg-surface placeholder:text-text-secondary outline-none"
+              className="w-full bg-white border border-black/10 rounded-[14px] px-4 py-3 text-[14px] outline-none focus:border-black/30 transition-colors duration-500 placeholder:text-black/35"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") confirmName();
@@ -963,16 +960,16 @@ export function ResumeUploadButton({
                   setShowNameDialog(false);
                   setPendingData(null);
                 }}
-                className="px-5 py-2.5 rounded-full border-3 border-black text-label font-extrabold uppercase tracking-widest hover:bg-black hover:text-white transition-[150ms]"
+                className="calm-pill"
               >
                 Discard
               </button>
               <button
                 onClick={confirmName}
                 disabled={!resumeName.trim()}
-                className="px-5 py-2.5 rounded-full border-3 border-black bg-green text-label font-extrabold uppercase tracking-widest brutal-shadow-sm hover:opacity-90 transition-[150ms] disabled:opacity-30 disabled:cursor-not-allowed"
+                className="bg-[#111] text-white rounded-full px-5 py-2.5 text-[13px] font-medium transition-all duration-500 hover:opacity-90 disabled:opacity-30"
               >
-                Save Resume
+                Save resume
               </button>
             </div>
           </div>
@@ -980,10 +977,7 @@ export function ResumeUploadButton({
       )}
 
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-surface border-3 border-black rounded-[14px] brutal-shadow-sm px-5 py-3 flex items-center gap-2 text-label font-extrabold uppercase tracking-widest animate-fade-in">
-          <span className={toast.error ? "text-red" : "text-green"}>
-            {toast.error ? "✗" : "✓"}
-          </span>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#111] text-white rounded-full px-5 py-3 text-[13px] animate-fade-in">
           {toast.message}
         </div>
       )}

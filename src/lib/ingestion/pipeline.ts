@@ -7,7 +7,9 @@ import { RemotiveSource } from "@/lib/sources/remotive";
 import { GreenhouseSource } from "@/lib/sources/greenhouse";
 import { LeverSource } from "@/lib/sources/lever";
 import { AshbySource } from "@/lib/sources/ashby";
+import { WorkdaySource } from "@/lib/sources/workday";
 import { extractSkills } from "@/lib/ingestion/skills";
+import { withRetry } from "@/lib/jobs/retry";
 import { isEntryLevel } from "@/lib/ingestion/experience";
 import { classifyJob } from "@/lib/ingestion/classifier";
 import { getWorkMode } from "@/lib/ingestion/location";
@@ -22,6 +24,9 @@ const SOURCE_SCORES: Record<string, number> = {
   greenhouse: 3,
   lever: 3,
   ashby: 3,
+  // Workday starts at 2: ATS-direct feed, but promote to 3 only after a
+  // week of clean SourceSync logs proves parity with the big three.
+  workday: 2,
   remotive: 1,
   adzuna: 0,
   jooble: 0,
@@ -38,6 +43,7 @@ const SOURCES: JobSource[] = [
   new GreenhouseSource(),
   new LeverSource(),
   new AshbySource(),
+  new WorkdaySource(),
 ];
 
 function normalizeSourceName(name: string): JobSourceEnum {
@@ -48,6 +54,7 @@ function normalizeSourceName(name: string): JobSourceEnum {
     greenhouse: "GREENHOUSE",
     lever: "LEVER",
     ashby: "ASHBY",
+    workday: "WORKDAY",
   };
   return map[name] ?? "ADZUNA";
 }
@@ -139,7 +146,14 @@ export async function runIngestionPipeline(): Promise<void> {
       });
 
       try {
-        const rawJobs = await source.fetchJobs();
+        // Transient tenant failures retry inside this run (3 attempts,
+        // 5s/15s backoff, 2min cap) instead of waiting 6h for next cron.
+        const rawJobs = await withRetry(() => source.fetchJobs(), {
+          attempts: 3,
+          baseDelayMs: 5_000,
+          timeoutMs: 120_000,
+          label: `fetch:${source.name}`,
+        });
         return { sourceEnum, rawJobs, sync, source };
       } catch (err) {
         await prisma.sourceSync.update({

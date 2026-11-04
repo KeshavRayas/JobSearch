@@ -1,6 +1,48 @@
 import { prisma } from "@/lib/prisma";
 import type { JobFilters, PaginatedResult, JobSearchResult } from "@/lib/types";
 import { daysAgo } from "@/lib/utils";
+import { SIGNAL_SKILLS } from "@/lib/constants";
+
+export type SkillCount = { skill: string; count: number };
+
+// Live counts for the curated signal-first set, using the same base
+// visibility filter as searchJobs (ACTIVE, classified, ≤30d).
+// Global counts (not narrowed by current filters) keep pills stable
+// across navigations and preserve the instant static shell.
+//
+// Cached in-process for 10 minutes: counts only move when ingestion runs
+// (every 6h), so per-request recomputation is pure waste. Small enough to
+// hold per server instance; staleness is bounded and harmless (UI hints).
+const SKILL_COUNT_TTL_MS = 10 * 60_000;
+let skillCountCache: { at: number; data: SkillCount[] } | null = null;
+
+export async function getSignalSkillCounts(): Promise<SkillCount[]> {
+  if (
+    skillCountCache &&
+    Date.now() - skillCountCache.at < SKILL_COUNT_TTL_MS
+  ) {
+    return skillCountCache.data;
+  }
+  const rows = await prisma.$queryRawUnsafe<{ skill: string; count: number }[]>(
+    `SELECT s.skill AS skill, COUNT(*)::int AS count
+     FROM "Job" j, LATERAL unnest(j."skills") AS s(skill)
+     WHERE j."status" = 'ACTIVE'
+       AND j."classificationScore" IS NOT NULL
+       AND j."classificationScore" >= 0.70
+       AND j."postedAt" IS NOT NULL
+       AND DATE_PART('day', NOW() - j."postedAt") <= 30
+       AND s.skill = ANY($1)
+     GROUP BY s.skill`,
+    [...SIGNAL_SKILLS],
+  );
+  const bySkill = new Map(rows.map((r) => [r.skill, r.count]));
+  const data = [...SIGNAL_SKILLS].map((skill) => ({
+    skill,
+    count: bySkill.get(skill) ?? 0,
+  }));
+  skillCountCache = { at: Date.now(), data };
+  return data;
+}
 
 export async function searchJobs(
   filters: JobFilters,
@@ -100,6 +142,9 @@ export async function searchJobs(
       salaryMin: number | null;
       salaryMax: number | null;
       salaryCurr: string | null;
+      jobType: string | null;
+      experience: string | null;
+      source: string;
       postedAt: Date | null;
       skills: string[];
       companyId: string;
@@ -111,6 +156,7 @@ export async function searchJobs(
   >(
     `SELECT j.id, j.title, j.description, j."applyUrl", j."workMode",
             j.location, j."salaryMin", j."salaryMax", j."salaryCurr",
+            j."jobType", j."experience", j."source",
             j."postedAt", j.skills,
             c.id as "companyId", c.name as "companyName", c.slug as "companySlug",
             c.logo as "companyLogo", c."companyType"
@@ -134,6 +180,9 @@ export async function searchJobs(
     salaryMin: r.salaryMin ?? undefined,
     salaryMax: r.salaryMax ?? undefined,
     salaryCurr: r.salaryCurr ?? undefined,
+    jobType: (r.jobType ?? undefined) as JobSearchResult["jobType"],
+    experience: (r.experience ?? undefined) as JobSearchResult["experience"],
+    source: r.source as JobSearchResult["source"],
     postedAt: r.postedAt,
     daysOld: daysAgo(r.postedAt),
     skills: r.skills ?? [],
@@ -160,4 +209,49 @@ export async function getJobById(id: string) {
     where: { id },
     include: { company: true },
   });
+}
+
+export type DecisionBoardColumn = {
+  status: "SAVED" | "QUEUED" | "OPENED" | "APPLIED" | "SKIPPED";
+  jobs: {
+    id: string;
+    title: string;
+    location: string | null;
+    postedAt: Date | null;
+    decidedAt: Date;
+    companyName: string;
+  }[];
+};
+
+// Application tracker board (Phase 3B): every decided job grouped by
+// status. Reads only — moves happen in JobDetailPanel (the writers).
+export async function getDecisionBoard(): Promise<DecisionBoardColumn[]> {
+  const rows = await prisma.applicationDecision.findMany({
+    orderBy: { decidedAt: "desc" },
+    include: {
+      job: {
+        select: {
+          id: true,
+          title: true,
+          location: true,
+          postedAt: true,
+          company: { select: { name: true } },
+        },
+      },
+    },
+  });
+  const order = ["SAVED", "QUEUED", "OPENED", "APPLIED", "SKIPPED"] as const;
+  return order.map((status) => ({
+    status,
+    jobs: rows
+      .filter((r) => r.status === status)
+      .map((r) => ({
+        id: r.job.id,
+        title: r.job.title,
+        location: r.job.location,
+        postedAt: r.job.postedAt,
+        decidedAt: r.decidedAt,
+        companyName: r.job.company.name,
+      })),
+  }));
 }

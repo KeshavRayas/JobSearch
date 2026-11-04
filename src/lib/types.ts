@@ -60,6 +60,9 @@ export type JobSearchResult = {
   salaryMin?: number;
   salaryMax?: number;
   salaryCurr?: string;
+  jobType?: JobType;
+  experience?: ExperienceLevel;
+  source: JobSource;
   postedAt: Date | null;
   daysOld: number;
   skills: string[];

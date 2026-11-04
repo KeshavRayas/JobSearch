@@ -28,6 +28,13 @@ export function cn(
   return classes.filter(Boolean).join(" ");
 }
 
+/** FULL_TIME → "Full time", ENTRY → "Entry". Null-safe enum display. */
+export function enumLabel(value?: string | null): string | null {
+  if (!value) return null;
+  const lower = value.toLowerCase().replace(/_/g, " ");
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
 export function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

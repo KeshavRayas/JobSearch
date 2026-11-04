@@ -4,6 +4,15 @@
 
 Vercel Cron Job runs every 6 hours: `GET /api/cron/ingest`
 
+Set `CRON_SECRET` on the project and Vercel sends it as
+`Authorization: Bearer …` automatically; the route 401s anything else.
+Unset locally = open (dev frictionless). `maxDuration = 300` on the route.
+
+Each source fetch retries in-run (3 attempts, 5s/15s backoff, 2min cap
+via `src/lib/jobs/retry.ts`) — transient tenant outages self-heal instead
+of waiting for the next run. Per-source isolation (`allSettled`) means one
+dead feed never sinks the others.
+
 ## Pipeline Steps
 
 ```
@@ -47,6 +56,7 @@ interface JobSource {
 | Greenhouse | Board JSON  | Scrapes company-specific board URLs |
 | Lever      | Public API  | Scrapes company-specific postings   |
 | Ashby      | Posting API | Scrapes company-specific postings   |
+| Workday    | CxS JSON (POST, limit 20) | Per-tenant boards; `atsBoard` = `<host>/<board>`. List + per-job detail fetch. Seeded: Nvidia, Walmart, Accenture |
 
 ## Debugging
 
