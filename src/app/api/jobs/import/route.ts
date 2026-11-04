@@ -17,6 +17,7 @@ export async function POST(req: Request) {
   }
 
   const result = await importJobFromUrl(body.url.trim());
-  if (!result.ok) return Response.json({ error: result.reason }, { status: 422 });
+  if (!result.ok)
+    return Response.json({ error: result.reason }, { status: 422 });
   return Response.json({ jobId: result.jobId }, { status: 201 });
 }

@@ -42,7 +42,12 @@ export const LLM_PRESETS: LlmPreset[] = [
     baseUrl: "http://localhost:11434/v1",
     modelPlaceholder: "llama3.1",
   },
-  { id: "custom", label: "Custom URL", baseUrl: "", modelPlaceholder: "model id" },
+  {
+    id: "custom",
+    label: "Custom URL",
+    baseUrl: "",
+    modelPlaceholder: "model id",
+  },
 ];
 
 export type LlmSettings = {

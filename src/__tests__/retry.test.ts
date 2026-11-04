@@ -4,9 +4,9 @@ import { withRetry } from "@/lib/jobs/retry";
 describe("withRetry", () => {
   it("returns on first success without sleeping", async () => {
     const fn = vi.fn().mockResolvedValue("ok");
-    await expect(
-      withRetry(fn, { attempts: 3, baseDelayMs: 1 }),
-    ).resolves.toBe("ok");
+    await expect(withRetry(fn, { attempts: 3, baseDelayMs: 1 })).resolves.toBe(
+      "ok",
+    );
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
@@ -16,9 +16,9 @@ describe("withRetry", () => {
       .mockRejectedValueOnce(new Error("boom-1"))
       .mockRejectedValueOnce(new Error("boom-2"))
       .mockResolvedValue("recovered");
-    await expect(
-      withRetry(fn, { attempts: 3, baseDelayMs: 1 }),
-    ).resolves.toBe("recovered");
+    await expect(withRetry(fn, { attempts: 3, baseDelayMs: 1 })).resolves.toBe(
+      "recovered",
+    );
     expect(fn).toHaveBeenCalledTimes(3);
   });
 
@@ -31,9 +31,7 @@ describe("withRetry", () => {
   });
 
   it("times out slow attempts", async () => {
-    const fn = vi
-      .fn()
-      .mockImplementation(() => new Promise(() => {}));
+    const fn = vi.fn().mockImplementation(() => new Promise(() => {}));
     await expect(
       withRetry(fn, { attempts: 1, baseDelayMs: 1, timeoutMs: 20 }),
     ).rejects.toThrow("timed out");

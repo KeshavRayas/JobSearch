@@ -6,7 +6,9 @@ test("homepage renders the calm shell with jobs", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "What do you want next?" }),
   ).toBeVisible();
-  await expect(page.getByRole("textbox", { name: /react bangalore/i })).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: /react bangalore/i }),
+  ).toBeVisible();
 
   const cards = page.locator('a[href*="selected="]');
   await expect(cards.first()).toBeVisible();

@@ -12,16 +12,19 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 15_000 },
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    // Dedicated port: port 3000 is commonly occupied by another local Next.js
+    // app, and reusing a foreign server silently runs the suite against it.
+    baseURL: "http://127.0.0.1:3100",
     trace: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "bun run dev --port 3000 --hostname 127.0.0.1",
-    url: "http://127.0.0.1:3000",
-    reuseExistingServer: !process.env.CI,
+    command: "bun run dev --port 3100 --hostname 127.0.0.1",
+    url: "http://127.0.0.1:3100",
+    reuseExistingServer: false,
     timeout: 120_000,
     stdout: "pipe",
   },
+  globalSetup: "./e2e/global-setup.ts",
   globalTeardown: "./e2e/teardown.ts",
 });

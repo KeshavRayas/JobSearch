@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getDecisionBoard } from "@/lib/repositories/jobs.repository";
 import { formatDaysAgo } from "@/lib/utils";
+import { SiteNav } from "@/components/SiteNav";
 
 export const dynamic = "force-dynamic";
 
@@ -26,14 +27,7 @@ export default async function TrackerPage() {
         <Link href="/" className="font-serif-calm text-xl">
           Job Search
         </Link>
-        <div className="flex items-center gap-2">
-          <Link href="/" className="calm-pill">
-            Discover
-          </Link>
-          <Link href="/resumes" className="calm-pill">
-            Resumes
-          </Link>
-        </div>
+        <SiteNav current="tracker" />
       </header>
 
       <section className="max-w-6xl mx-auto px-6 pt-14 text-center">

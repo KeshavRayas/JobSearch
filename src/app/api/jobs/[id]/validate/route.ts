@@ -6,11 +6,7 @@ import {
   SemanticValidationError,
 } from "@/lib/tailor/validateSemantic";
 import { LlmError } from "@/lib/llm/types";
-import {
-  resolveProvider,
-  usageOf,
-  MissingModelError,
-} from "@/lib/llm/userKey";
+import { resolveProvider, usageOf, MissingModelError } from "@/lib/llm/userKey";
 
 type Params = Promise<{ id: string }>;
 
@@ -51,7 +47,13 @@ export async function POST(req: Request, ctx: { params: Params }) {
     const { provider, meta } = resolveProvider(req.headers);
     const { status, result } = await validateTailored(id, provider);
     return Response.json(
-      { status, result, cached: false, usage: usageOf(provider), provider: meta },
+      {
+        status,
+        result,
+        cached: false,
+        usage: usageOf(provider),
+        provider: meta,
+      },
       { status: 201 },
     );
   } catch (err) {

@@ -458,10 +458,7 @@ export function ResumeForm({
           )}
           {saving ? "Saving…" : saved ? "Saved" : "Save"}
         </button>
-        <button
-          onClick={handleDownload}
-          className="calm-pill"
-        >
+        <button onClick={handleDownload} className="calm-pill">
           <Download className="w-4 h-4" />
           Download
         </button>

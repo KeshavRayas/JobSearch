@@ -4,19 +4,22 @@ import nextDynamic from "next/dynamic";
 import { JobFilters } from "@/components/JobFilters";
 import { JobCard } from "@/components/JobCard";
 import { Pagination } from "@/components/Pagination";
-import { searchJobs, getSignalSkillCounts } from "@/lib/repositories/jobs.repository";
+import {
+  searchJobs,
+  getSignalSkillCounts,
+} from "@/lib/repositories/jobs.repository";
 import { logSearchEvent } from "@/lib/repositories/search.repository";
 import type { JobFilters as Filters } from "@/lib/types";
 import { RefreshButton } from "@/components/RefreshButton";
 import { JobImport } from "@/components/JobImport";
 import { ModalShell } from "@/components/ModalShell";
+import { SiteNav } from "@/components/SiteNav";
 
 // Code-split: the detail cockpit (panel + all its fetch logic) ships as a
 // separate chunk instead of weighing down the initial homepage bundle.
 // It only renders when ?selected= is present.
 const JobDetailPanel = nextDynamic(
-  () =>
-    import("@/components/JobDetailPanel").then((m) => m.JobDetailPanel),
+  () => import("@/components/JobDetailPanel").then((m) => m.JobDetailPanel),
   { ssr: true },
 );
 
@@ -75,15 +78,9 @@ export default async function HomePage({
         <Link href="/" className="font-serif-calm text-xl">
           Job Search
         </Link>
-        <div className="flex items-center gap-2">
+        <SiteNav current="discover">
           <RefreshButton />
-          <Link href="/tracker" className="calm-pill">
-            Tracker
-          </Link>
-          <Link href="/resumes" className="calm-pill">
-            Resumes
-          </Link>
-        </div>
+        </SiteNav>
       </header>
 
       {/* Centered hero */}

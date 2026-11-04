@@ -69,14 +69,22 @@ export function parseImportedPage(
   const companyName =
     metaContent(body, "property", "og:site_name") ??
     metaContent(body, "name", "author") ??
-    host.split(".")[0].replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    host
+      .split(".")[0]
+      .replace(/[-_]/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
   const title =
-    metaContent(body, "property", "og:title") ?? titleOf(body) ?? "Untitled role";
+    metaContent(body, "property", "og:title") ??
+    titleOf(body) ??
+    "Untitled role";
   const description = stripHtml(body);
   // Location inference mirrors the ingestion/location.ts signals so the
   // workMode gate sees the same evidence the adapters provide.
   const haystack = `${title} ${description}`;
-  const isRemote = /\b(remote|work from home|work-from-home|distributed|fully remote|remote-first|remote india|remote apac)\b/i.test(haystack);
+  const isRemote =
+    /\b(remote|work from home|work-from-home|distributed|fully remote|remote-first|remote india|remote apac)\b/i.test(
+      haystack,
+    );
   const inBangalore = /\b(bangalore|bengaluru|karnataka)\b/i.test(haystack);
   return {
     title,
@@ -88,15 +96,17 @@ export function parseImportedPage(
   };
 }
 
-export async function importJobFromUrl(url: string): Promise<
-  | { ok: true; jobId: string }
-  | { ok: false; reason: string }
-> {
+export async function importJobFromUrl(
+  url: string,
+): Promise<{ ok: true; jobId: string } | { ok: false; reason: string }> {
   let parsed: URL;
   try {
     parsed = assertImportableUrl(url);
   } catch (err) {
-    return { ok: false, reason: err instanceof Error ? err.message : "bad URL" };
+    return {
+      ok: false,
+      reason: err instanceof Error ? err.message : "bad URL",
+    };
   }
 
   let html: string;
@@ -125,7 +135,8 @@ export async function importJobFromUrl(url: string): Promise<
     remote: fields.remote,
     applyUrl: fields.applyUrl,
   });
-  if (!parsedJob.success) return { ok: false, reason: "page is missing job details" };
+  if (!parsedJob.success)
+    return { ok: false, reason: "page is missing job details" };
   const job = parsedJob.data;
 
   const classification = classifyJob(job);

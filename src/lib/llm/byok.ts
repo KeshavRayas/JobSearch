@@ -18,9 +18,7 @@ export type ByokRequest = {
 };
 
 /** Pull user-supplied credentials off request headers (empty → undefined). */
-export function readByokHeaders(
-  headers: Pick<Headers, "get">,
-): ByokRequest {
+export function readByokHeaders(headers: Pick<Headers, "get">): ByokRequest {
   const pick = (name: string): string | undefined => {
     const v = headers.get(name)?.trim();
     return v ? v : undefined;

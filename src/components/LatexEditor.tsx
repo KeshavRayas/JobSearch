@@ -3,13 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { ResumeData } from "@/lib/resume.types";
 import { LatexPreview } from "./LatexPreview";
-import {
-  Save,
-  Download,
-  Loader2,
-  Check,
-  Briefcase,
-} from "lucide-react";
+import { Save, Download, Loader2, Check, Briefcase } from "lucide-react";
 import Link from "next/link";
 
 type LatexEditorProps = {

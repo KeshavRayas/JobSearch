@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { ResumeUploadButton } from "@/components/ResumeUploadButton";
 import { DeleteResumeButton } from "@/components/DeleteResumeButton";
+import { SiteNav } from "@/components/SiteNav";
 
 export const dynamic = "force-dynamic";
 
@@ -27,12 +28,12 @@ export default async function ResumesPage() {
         <Link href="/" className="font-serif-calm text-xl">
           Job Search
         </Link>
-        <div className="flex items-center gap-2">
+        <SiteNav current="resumes">
           <ResumeUploadButton variant="button" />
           <Link href="/resumes/new" className="calm-pill">
             New resume
           </Link>
-        </div>
+        </SiteNav>
       </header>
 
       <section className="max-w-4xl mx-auto px-6 pt-14 text-center">

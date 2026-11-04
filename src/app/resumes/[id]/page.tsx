@@ -46,10 +46,7 @@ export default function EditResumePage() {
       <div className="min-h-screen bg-[#FAFAF7] flex items-center justify-center">
         <div className="text-center">
           <p className="font-serif-calm text-3xl">Resume not found.</p>
-          <Link
-            href="/resumes"
-            className="calm-pill inline-block mt-6"
-          >
+          <Link href="/resumes" className="calm-pill inline-block mt-6">
             Back to resumes
           </Link>
         </div>

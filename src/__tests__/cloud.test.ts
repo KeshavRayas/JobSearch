@@ -20,9 +20,7 @@ function okFetch(payload: unknown, usage = true) {
     status: 200,
     json: async () => ({
       choices: [{ message: { content: JSON.stringify(payload) } }],
-      ...(usage
-        ? { usage: { prompt_tokens: 10, completion_tokens: 5 } }
-        : {}),
+      ...(usage ? { usage: { prompt_tokens: 10, completion_tokens: 5 } } : {}),
     }),
   });
 }

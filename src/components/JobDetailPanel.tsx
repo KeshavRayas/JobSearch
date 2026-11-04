@@ -478,7 +478,9 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setTailorError("Cancelled.");
       } else {
-        setTailorError(err instanceof Error ? err.message : "Validation failed");
+        setTailorError(
+          err instanceof Error ? err.message : "Validation failed",
+        );
       }
     } finally {
       stopCallTimer("/validate");
@@ -886,8 +888,8 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                     )}
                   </div>
                   <p className="text-[11px] text-black/45">
-                    Key travels per request, never stored or logged
-                    server-side. Without one, the shared default runs instead.
+                    Key travels per request, never stored or logged server-side.
+                    Without one, the shared default runs instead.
                   </p>
                 </div>
               )}
@@ -995,9 +997,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                           key={`${issue.itemId}-${i}`}
                           className="text-body font-medium leading-relaxed"
                         >
-                          <span className="font-bold">
-                            [{issue.severity}]
-                          </span>{" "}
+                          <span className="font-bold">[{issue.severity}]</span>{" "}
                           <span className="font-bold">{issue.itemId}</span> —{" "}
                           {issue.explanation}
                         </li>
@@ -1017,7 +1017,9 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                     disabled={!mounted || validating}
                     className="w-full flex items-center justify-center gap-2 bg-white text-black font-medium px-4 py-2.5 rounded-full border border-black/10 text-[13px] hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
                   >
-                    {validating ? `Checking…${timerFor("/validate")}` : "Check Evidence"}
+                    {validating
+                      ? `Checking…${timerFor("/validate")}`
+                      : "Check Evidence"}
                   </button>
                   {cancelButton("/validate", validating)}
                 </div>
@@ -1291,9 +1293,7 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                                   STAR story
                                 </p>
                                 <p className="text-body font-medium leading-relaxed">
-                                  <span className="font-bold">
-                                    Situation:
-                                  </span>{" "}
+                                  <span className="font-bold">Situation:</span>{" "}
                                   {q.starStory.situation}
                                 </p>
                                 <p className="text-body font-medium leading-relaxed">
@@ -1301,15 +1301,11 @@ export function JobDetailPanel({ jobs }: { jobs: JobSearchResult[] }) {
                                   {q.starStory.task}
                                 </p>
                                 <p className="text-body font-medium leading-relaxed">
-                                  <span className="font-bold">
-                                    Action:
-                                  </span>{" "}
+                                  <span className="font-bold">Action:</span>{" "}
                                   {q.starStory.action}
                                 </p>
                                 <p className="text-body font-medium leading-relaxed">
-                                  <span className="font-bold">
-                                    Result:
-                                  </span>{" "}
+                                  <span className="font-bold">Result:</span>{" "}
                                   {q.starStory.result}
                                 </p>
                               </div>

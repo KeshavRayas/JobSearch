@@ -101,12 +101,10 @@ async function getTypstCompiler(): Promise<{
 }> {
   if (!typstCompiler) {
     typstCompiler = (async () => {
-      const { createTypstCompiler, CompileFormatEnum } = (await import(
-        "@myriaddreamin/typst.ts/compiler"
-      )) as typeof import("@myriaddreamin/typst.ts/compiler");
-      const { loadFonts } = await import(
-        "@myriaddreamin/typst.ts/options.init"
-      );
+      const { createTypstCompiler, CompileFormatEnum } =
+        (await import("@myriaddreamin/typst.ts/compiler")) as typeof import("@myriaddreamin/typst.ts/compiler");
+      const { loadFonts } =
+        await import("@myriaddreamin/typst.ts/options.init");
       const { readFile } = await import("node:fs/promises");
       const compiler = createTypstCompiler();
       const fontData = await Promise.all(
@@ -151,10 +149,7 @@ function loadTypstTemplate(): Promise<string> {
   if (!typstTemplate) {
     typstTemplate = (async () => {
       const { readFile } = await import("node:fs/promises");
-      return readFile(
-        path.join(process.cwd(), ...TYPST_TEMPLATE_DISK),
-        "utf8",
-      );
+      return readFile(path.join(process.cwd(), ...TYPST_TEMPLATE_DISK), "utf8");
     })();
   }
   return typstTemplate;
@@ -196,10 +191,7 @@ async function doCompileTypst(
   })();
   const timeout = new Promise<never>((_, reject) => {
     setTimeout(
-      () =>
-        reject(
-          new RenderError(`typst timed out after ${timeoutMs}ms`, ""),
-        ),
+      () => reject(new RenderError(`typst timed out after ${timeoutMs}ms`, "")),
       timeoutMs,
     );
   });

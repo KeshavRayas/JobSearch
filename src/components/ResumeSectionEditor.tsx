@@ -601,10 +601,7 @@ function ItemListEditor<T extends { id: string }>({
           {renderItem(item, onItemChange)}
         </div>
       ))}
-      <button
-        onClick={onAdd}
-        className="calm-pill w-full justify-center"
-      >
+      <button onClick={onAdd} className="calm-pill w-full justify-center">
         <Plus className="w-3.5 h-3.5" /> Add Entry
       </button>
     </div>

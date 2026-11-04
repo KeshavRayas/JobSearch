@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # Unit tests never query Postgres; a syntactically valid URL is enough
+      # for PrismaClient construction. DB-backed tests are opt-in via
+      # `bun run test:integration`.
+      DATABASE_URL: postgresql://user:pass@localhost:5432/jobsearch
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test

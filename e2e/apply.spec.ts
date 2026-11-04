@@ -9,11 +9,13 @@ test("detail overlay opens with correct gates", async ({ page }) => {
   const id = await firstSelectedId(page);
   await page.goto(`/?selected=${id}`);
 
-  await expect(page.getByRole("heading", { name: "AI Analysis" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /analyze job/i })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Role facts" }),
+    page.getByRole("heading", { name: "AI Analysis" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /analyze job/i }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Role facts" })).toBeVisible();
   await expect(page.getByText("Add your AI key")).toBeVisible();
   await expect(
     page.getByRole("button", { name: /tailor resume/i }),
@@ -27,7 +29,9 @@ test("detail overlay opens with correct gates", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "OPEN APPLICATION" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Save", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Save", exact: true }),
+  ).toBeVisible();
 });
 
 test("save records a decision visible on the tracker", async ({ page }) => {
@@ -51,9 +55,7 @@ test("save records a decision visible on the tracker", async ({ page }) => {
   });
 
   await page.goto("/tracker");
-  await expect(
-    page.locator(`a[href*="selected=${id}"]`).first(),
-  ).toBeVisible();
+  await expect(page.locator(`a[href*="selected=${id}"]`).first()).toBeVisible();
 });
 
 test("liveness probe reports a badge", async ({ page }) => {

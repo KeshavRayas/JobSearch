@@ -90,6 +90,9 @@ Forbidden: `border-3`, `border-4`, `brutal-shadow-*`, `bg-yellow`, `bg-green`,
   text badges (no filled green/yellow/red/purple), serif section titles,
   sentence-case footer; action buttons disabled until hydrated (logic untouched)
 - `src/app/tracker/page.tsx` — calm board
+- `src/app/settings/page.tsx`, `src/components/ProfileSettings.tsx` — calm
+  settings (identity, preferences, skills, role goals, base resume)
+- `src/components/SiteNav.tsx` — shared quiet pill navigation
 - `src/app/resumes/page.tsx`, `resumes/new`, `resumes/[id]` — calm index +
   editor (ResumeForm/ResumeSectionEditor/ResumeUploadButton/
   DeleteResumeButton/LatexEditor chrome); section form used when no tex

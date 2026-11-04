@@ -96,9 +96,7 @@ export function renderTypst(
         }
         case "education": {
           if (!s(f.school) && !s(f.degree)) break;
-          const degree = [s(f.degree), s(f.field)]
-            .filter(Boolean)
-            .join(" in ");
+          const degree = [s(f.degree), s(f.field)].filter(Boolean).join(" in ");
           const dates = [s(f.startDate), s(f.endDate)]
             .filter(Boolean)
             .join(" \u2013 ");
@@ -144,9 +142,7 @@ export function renderTypst(
       section.type === "skills"
         ? `#skill-grid(${typstTuple(parts)})`
         : parts.join("\n");
-    bodies.push(
-      `#section(${typstStr(section.title)})[\n${body}\n]`,
-    );
+    bodies.push(`#section(${typstStr(section.title)})[\n${body}\n]`);
   }
 
   return `${header}\n${bodies.join("\n")}`;

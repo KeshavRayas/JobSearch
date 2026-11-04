@@ -26,7 +26,9 @@ describe("parseWorkdayPostedOn", () => {
   });
 
   it("returns undefined for unknown shapes", () => {
-    expect(parseWorkdayPostedOn("Posted over a month ago", NOW)).toBeUndefined();
+    expect(
+      parseWorkdayPostedOn("Posted over a month ago", NOW),
+    ).toBeUndefined();
     expect(parseWorkdayPostedOn(undefined, NOW)).toBeUndefined();
     expect(parseWorkdayPostedOn(42, NOW)).toBeUndefined();
   });
@@ -34,9 +36,9 @@ describe("parseWorkdayPostedOn", () => {
 
 describe("workdayTenantFromHost", () => {
   it("takes the first DNS label", () => {
-    expect(
-      workdayTenantFromHost("walmart.wd504.myworkdayjobs.com"),
-    ).toBe("walmart");
+    expect(workdayTenantFromHost("walmart.wd504.myworkdayjobs.com")).toBe(
+      "walmart",
+    );
   });
 });
 
@@ -106,9 +108,7 @@ describe("mapWorkdayPosting", () => {
   });
 
   it("returns null without an id or path", () => {
-    expect(
-      mapWorkdayPosting({}, company, host, board, "x"),
-    ).toBeNull();
+    expect(mapWorkdayPosting({}, company, host, board, "x")).toBeNull();
   });
 });
 

@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  assertImportableUrl,
-  parseImportedPage,
-} from "@/lib/ingestion/import";
+import { assertImportableUrl, parseImportedPage } from "@/lib/ingestion/import";
 
 describe("assertImportableUrl", () => {
   it("accepts https URLs", () => {

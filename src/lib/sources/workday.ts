@@ -64,8 +64,7 @@ export function mapWorkdayPosting(
 
   const locationsText =
     typeof posting.locationsText === "string" ? posting.locationsText : "";
-  const location =
-    locationsText || reqIds.slice(1).join(" ") || undefined;
+  const location = locationsText || reqIds.slice(1).join(" ") || undefined;
   const title = typeof posting.title === "string" ? posting.title : "";
 
   return {

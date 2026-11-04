@@ -48,14 +48,14 @@ interface JobSource {
 }
 ```
 
-| Source     | Method      | Notes                               |
-| ---------- | ----------- | ----------------------------------- |
-| Adzuna     | REST API    | Free tier, India/Bangalore focused  |
-| Jooble     | REST API    | Free tier, global + India           |
-| Remotive   | JSON feed   | No auth needed, remote jobs         |
-| Greenhouse | Board JSON  | Scrapes company-specific board URLs |
-| Lever      | Public API  | Scrapes company-specific postings   |
-| Ashby      | Posting API | Scrapes company-specific postings   |
+| Source     | Method                    | Notes                                                                                                             |
+| ---------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Adzuna     | REST API                  | Free tier, India/Bangalore focused                                                                                |
+| Jooble     | REST API                  | Free tier, global + India                                                                                         |
+| Remotive   | JSON feed                 | No auth needed, remote jobs                                                                                       |
+| Greenhouse | Board JSON                | Scrapes company-specific board URLs                                                                               |
+| Lever      | Public API                | Scrapes company-specific postings                                                                                 |
+| Ashby      | Posting API               | Scrapes company-specific postings                                                                                 |
 | Workday    | CxS JSON (POST, limit 20) | Per-tenant boards; `atsBoard` = `<host>/<board>`. List + per-job detail fetch. Seeded: Nvidia, Walmart, Accenture |
 
 ## Debugging

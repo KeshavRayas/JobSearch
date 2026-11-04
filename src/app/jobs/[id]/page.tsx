@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getJobById } from "@/lib/repositories/jobs.repository";
 import { formatDaysAgo, formatSalary, enumLabel } from "@/lib/utils";
+import { SiteNav } from "@/components/SiteNav";
 
 type Params = Promise<{ id: string }>;
 
@@ -22,9 +23,12 @@ export default async function JobDetailPage({ params }: { params: Params }) {
         <Link href="/" className="font-serif-calm text-xl">
           Job Search
         </Link>
-        <Link href="/" className="calm-pill">
-          ← Back
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/" className="calm-pill">
+            ← Back
+          </Link>
+          <SiteNav current="discover" />
+        </div>
       </header>
 
       <section className="max-w-4xl mx-auto px-6 py-14">
@@ -53,10 +57,7 @@ export default async function JobDetailPage({ params }: { params: Params }) {
               {(
                 [
                   ["Type", job.jobType ? enumLabel(job.jobType) : null],
-                  [
-                    "Level",
-                    job.experience ? enumLabel(job.experience) : null,
-                  ],
+                  ["Level", job.experience ? enumLabel(job.experience) : null],
                   [
                     "Work mode",
                     job.workMode === "REMOTE"
@@ -66,10 +67,7 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                         : "On-site",
                   ],
                   ["Location", job.location],
-                  [
-                    "Posted",
-                    job.postedAt ? formatDaysAgo(job.postedAt) : null,
-                  ],
+                  ["Posted", job.postedAt ? formatDaysAgo(job.postedAt) : null],
                   ["Source", enumLabel(job.source)],
                 ] as [string, string | null][]
               ).map(([label, value]) =>

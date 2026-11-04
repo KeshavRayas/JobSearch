@@ -11,9 +11,7 @@ test("tracker renders hero and a seeded board card", async ({
   await page.goto("/");
   const cards = page.locator('a[href*="selected="]');
   const count = await cards.count();
-  const href = await cards
-    .nth(count > 1 ? 1 : 0)
-    .getAttribute("href");
+  const href = await cards.nth(count > 1 ? 1 : 0).getAttribute("href");
   const id = href?.split("selected=")[1]?.split("&")[0];
   expect(id).toBeTruthy();
   await trackDecision(id!);
@@ -27,9 +25,7 @@ test("tracker renders hero and a seeded board card", async ({
   await expect(
     page.getByRole("heading", { name: "Where things stand." }),
   ).toBeVisible();
-  await expect(
-    page.locator(`a[href*="selected=${id}"]`).first(),
-  ).toBeVisible();
+  await expect(page.locator(`a[href*="selected=${id}"]`).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Discover" })).toBeVisible();
 });
 

@@ -1,31 +1,155 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Job Search
 
-## Getting Started
+A local-first job search operating system. It ingests postings from seven
+sources, ranks them for one person, and drives the whole application loop:
+analyze a role, tailor a resume with evidence provenance, render an
+ATS-checked PDF, write a cover letter, prep for the interview, and track the
+outcome.
 
-First, run the development server:
+No accounts, no multi-tenancy, no cloud dependency beyond Postgres. It is
+designed to run on your machine, against your Neon database, with your resume.
+
+## Stack
+
+- Next.js 16 (App Router), React 19, TypeScript, Tailwind 4
+- Prisma 7 + Neon Postgres (`@prisma/adapter-pg`)
+- Zod contracts at every boundary
+- Resend for the nightly digest
+- Typst compiled to WASM for PDFs (LaTeX is an optional fallback)
+- LLM: local OpenCode CLI by default, any OpenAI-compatible endpoint via env
+
+## Quick start
+
+**Prerequisites**
+
+- [Bun](https://bun.sh) 1.3+ (package manager and script runner)
+- Node 22+ (Next.js runtime)
+- A Postgres database — [Neon](https://neon.tech) free tier is what this was
+  built against
+- The [OpenCode CLI](https://opencode.ai) if you want the free local LLM path
+  (otherwise set `LLM_PROVIDER=cloud` with an API key)
 
 ```bash
 bun install
+cp .env.example .env          # PowerShell: Copy-Item .env.example .env
+# edit .env: at minimum DATABASE_URL
+bun run check:env             # validates and explains what is configured
+bun run db:migrate            # apply all migrations
+bun run seed                  # curated company list (Greenhouse/Lever/Ashby/Workday boards)
 bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### First-run checklist
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Settings** → fill in your name, contact details, skills, locations,
+   salary floor, and work modes. This is what resumes, PDFs, and matching read.
+2. **Resumes** → upload or create a base resume. Structured content is the
+   evidence set that tailoring and cover letters must cite.
+3. **Discover** → press Refresh to run ingestion, or import a single job by URL.
+4. **Nightly** → `bun run ingest` refreshes sources; the nightly matcher is
+   triggered by `GET /api/cron/nightly` (see Scheduling).
 
-## Learn More
+Ingestion works without Adzuna/Jooble keys: those two adapters are skipped and
+the five keyless sources still run.
 
-To learn more about Next.js, take a look at the following resources:
+## Daily loop
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```text
+Discover → open a job → Analyze → Tailor → Check evidence → PDF → Cover letter → Interview prep → Tracker
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Every LLM step is opt-in, validates its JSON with Zod, persists only validated
+output, and never mutates `JobMatch.score`. Deterministic matching and the LLM
+verdict sit side by side.
 
-## Deploy on Vercel
+## LLM providers
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Provider     | How                                        | Where it works |
+| ------------ | ------------------------------------------ | -------------- |
+| OpenCode CLI | shells out to `opencode run --format json` | local only     |
+| Cloud (BYOK) | any OpenAI-compatible `/chat/completions`  | anywhere       |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Local default: whatever model OpenCode is configured with. Override the
+  binary with `OPENCODE_BIN` or the agent with `OPENCODE_AGENT`.
+- `LLM_PROVIDER=cloud` needs `LLM_API_KEY` + `LLM_MODEL`; optional
+  `LLM_BASE_URL`, `LLM_TIMEOUT_MS`.
+- The app also supports per-browser BYOK keys in the job panel; those never
+  leave localStorage except to the provider you configure.
+
+## Scheduling
+
+The routes are cron-shaped, not cron-configured. Locally, trigger them yourself:
+
+```bash
+bun run ingest                                  # ingestion pipeline
+curl http://localhost:3000/api/cron/nightly     # ingest + match + digest
+```
+
+If `CRON_SECRET` is set, send `Authorization: Bearer $CRON_SECRET`. On Windows,
+point Task Scheduler at `bun run ingest` (or a `curl` to the nightly route) for
+a daily run. There is no `vercel.json`; this project is not deployed.
+
+## Scripts
+
+| Command                    | Purpose                                       |
+| -------------------------- | --------------------------------------------- |
+| `bun run dev`              | Next.js dev server                            |
+| `bun run build`            | Production build                              |
+| `bun run lint`             | ESLint                                        |
+| `bun run typecheck`        | `tsc --noEmit`                                |
+| `bun run check`            | lint + typecheck + Prettier check             |
+| `bun run check:env`        | Validate `.env`, mask secrets, show providers |
+| `bun run db:migrate`       | Apply Prisma migrations                       |
+| `bun run db:status`        | Migration status                              |
+| `bun run seed`             | Seed curated companies                        |
+| `bun run ingest`           | Run ingestion once                            |
+| `bun run test`             | Unit tests (no database)                      |
+| `bun run test:integration` | DB-backed tests (needs `DATABASE_URL`)        |
+| `bun run test:e2e`         | Playwright end-to-end suite                   |
+| `bun run test:watch`       | Vitest watch mode                             |
+
+## Layout
+
+```text
+src/app/                 routes (discover, job detail, tracker, resumes, settings, api)
+src/components/          UI (Calm Focus design)
+src/lib/sources/         one adapter per job board
+src/lib/ingestion/       normalize → validate → dedupe → upsert
+src/lib/matching/        deterministic scoring + nightly digest
+src/lib/analysis/        job analysis service
+src/lib/tailor/          tailoring, provenance, semantic validation
+src/lib/cover/           cover letters
+src/lib/interview/       interview prep
+src/lib/pdf/             Typst/LaTeX render + ATS checks
+src/lib/llm/             provider abstraction, BYOK, retries
+src/lib/repositories/    all Prisma reads for pages
+prisma/                  schema + migrations
+docs/                    architecture, schema, per-phase contracts
+e2e/                     Playwright specs
+```
+
+## Tests
+
+- `bun run test` — 18 files, pure unit tests, no DB, ~5s.
+- `bun run test:integration` — DB-backed service tests; writes and deletes its
+  own rows. Uses longer timeouts because Neon is remote.
+- `bun run test:e2e` — Playwright against a dev server and the same database.
+  Specs are serial by design and share fixtures.
+
+## Design
+
+The UI is locked to **Calm Focus**; read
+[`DESIGN_CALM_FOCUS.md`](./DESIGN_CALM_FOCUS.md) before changing anything
+visual. Single centered column, hairlines only, Instrument Serif + Inter,
+900 ms entrances, minimal text. Neo-Brutalism is explicitly out.
+
+## Known limits
+
+- Single user. There is no auth, and `/api/*` is open to anyone who can reach
+  the server. Do not expose it publicly.
+- PDFs are written to `storage/` on the local filesystem (gitignored).
+- The local LLM path requires the OpenCode CLI on the same host as the app.
+- Adzuna and Jooble require free API keys; the other five sources do not.
+- The nightly digest needs `RESEND_API_KEY` + `DIGEST_TO_EMAIL`.

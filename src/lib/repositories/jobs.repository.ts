@@ -17,10 +17,7 @@ const SKILL_COUNT_TTL_MS = 10 * 60_000;
 let skillCountCache: { at: number; data: SkillCount[] } | null = null;
 
 export async function getSignalSkillCounts(): Promise<SkillCount[]> {
-  if (
-    skillCountCache &&
-    Date.now() - skillCountCache.at < SKILL_COUNT_TTL_MS
-  ) {
+  if (skillCountCache && Date.now() - skillCountCache.at < SKILL_COUNT_TTL_MS) {
     return skillCountCache.data;
   }
   const rows = await prisma.$queryRawUnsafe<{ skill: string; count: number }[]>(
