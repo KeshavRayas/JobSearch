@@ -9,7 +9,7 @@ import {
 import { collectEvidencePair } from "@/lib/tailor/evidence";
 import { validateTailoredResume } from "@/lib/tailor/validate";
 import { canonicalizeTailored } from "@/lib/tailor/canonical";
-import { enrichTailoredData } from "@/lib/tailor/document";
+import { enrichTailoredData, baseToTailoredData } from "@/lib/tailor/document";
 import type { ResumeData } from "@/lib/resume.types";
 import { hasResumeContent } from "@/lib/resume.utils";
 import { getDefaultProvider, setDefaultProvider } from "@/lib/analysis/service";
@@ -64,6 +64,7 @@ export { setDefaultProvider };
 export type TailoredDraftView = TailoredResumeData & {
   id: string;
   version: number;
+  baseResumeId: string;
   status: "DRAFT" | "APPROVED";
   warnings: string[];
 };
@@ -99,6 +100,7 @@ function draftView(
   row: {
     id: string;
     version: number;
+    baseResumeId: string;
     status: "DRAFT" | "APPROVED";
     warnings: string[];
     content: unknown;
@@ -111,6 +113,7 @@ function draftView(
     ...parsed.data,
     id: row.id,
     version: row.version,
+    baseResumeId: row.baseResumeId,
     status: row.status,
     warnings: row.warnings,
     ...(versionCount !== undefined ? { versionCount } : {}),
@@ -341,6 +344,53 @@ export async function approveTailoredResume(
   });
   const view = draftView(updated);
   if (!view) throw new NothingToApproveError();
+  return view;
+}
+
+/**
+ * Create a new draft from the base resume. The previous versions stay in
+ * history, so reverting is reversible.
+ */
+export async function revertTailoredResume(
+  jobId: string,
+): Promise<TailoredDraftView> {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    select: { id: true },
+  });
+  if (!job) throw new Error(`job not found: ${jobId}`);
+
+  const { base, content } = await requireBaseResumeContent();
+  const baseDraft = baseToTailoredData(content);
+  const enriched = enrichTailoredData(baseDraft, content);
+
+  const saved = await prisma.$transaction(async (tx) => {
+    const max = await tx.tailoredResume.aggregate({
+      where: { jobId },
+      _max: { version: true },
+    });
+    const version = (max._max.version ?? 0) + 1;
+    await tx.tailoredResume.updateMany({
+      where: { jobId, isCurrent: true },
+      data: { isCurrent: false },
+    });
+    return tx.tailoredResume.create({
+      data: {
+        jobId,
+        version,
+        isCurrent: true,
+        baseResumeId: base.id,
+        content: enriched as object,
+        evidenceIds: [],
+        status: "DRAFT",
+        warnings: [],
+      },
+    });
+  });
+
+  const view = draftView(saved);
+  if (!view)
+    throw new DraftValidationError("base draft could not be read back");
   return view;
 }
 

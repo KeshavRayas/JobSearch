@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Application workspace — design review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #fafaf7;
+      --card: #ffffff;
+      --ink: #111111;
+      --muted: rgba(17, 17, 17, .55);
+      --faint: rgba(17, 17, 17, .38);
+      --line: rgba(17, 17, 17, .08);
+      --line-strong: rgba(17, 17, 17, .16);
+      --ease: cubic-bezier(.16, 1, .3, 1);
+      --slow: 900ms;
+      --med: 600ms;
+      --fast: 300ms;
+      --green: #1f6b45;
+      --green-bg: #e9f5ee;
+      --green-line: #a7d8bd;
+      --red: #8c2f2f;
+      --red-bg: #fbebeb;
+      --red-line: #e7baba;
+      --amber: #8a5a17;
+      --amber-bg: #fbf3e4;
+      --serif: "Instrument Serif", Georgia, serif;
+      --sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    :where(.grid, .flex, .layout-grid, .layout-flex) > *,
+    :where([style*="display: grid"], [style*="display:flex"], [style*="display: flex"]) > * { min-width: 0; }
+    :where(p, h1, h2, h3, h4, h5, h6, li, dd, blockquote, figcaption, td, th, .badge, .label) { overflow-wrap: anywhere; }
+    :where(img, svg, video, canvas, iframe) { max-width: 100%; height: auto; }
+    html { background: var(--paper); scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 12% 0%, #fff 0, transparent 34rem), var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 56px 28px 92px; }
+    .eyebrow { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+    .serif { font-family: var(--serif); font-weight: 400; letter-spacing: -.02em; }
+    h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(48px, 7vw, 92px); line-height: .94; letter-spacing: -.035em; margin: 18px 0 18px; max-width: 960px; }
+    h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(30px, 3.2vw, 44px); line-height: 1.05; letter-spacing: -.02em; margin: 0; }
+    h3 { font-size: 15px; font-weight: 600; margin: 0; }
+    p { margin: 0; }
+    .lede { max-width: 760px; font-size: 17px; color: var(--muted); }
+    .section { margin-top: 78px; }
+    .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; margin-bottom: 24px; }
+    .section-head p { max-width: 470px; color: var(--muted); font-size: 14px; }
+    .hairline { border: 0; border-top: 1px solid var(--line); margin: 0; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; }
+    .pill { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line-strong); border-radius: 999px; padding: 6px 11px; font-size: 11px; font-weight: 600; letter-spacing: .04em; }
+    .pill.green { border-color: var(--green-line); background: var(--green-bg); color: var(--green); }
+    .pill.red { border-color: var(--red-line); background: var(--red-bg); color: var(--red); }
+    .pill.amber { border-color: #e8d4ae; background: var(--amber-bg); color: var(--amber); }
+    .pill.muted { color: var(--muted); font-weight: 500; letter-spacing: 0; }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 34px; }
+    .stat { padding: 18px 20px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.55); }
+    .stat .n { font-family: var(--serif); font-size: 30px; line-height: 1; }
+    .stat .k { margin-top: 8px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .compare { display: grid; grid-template-columns: .9fr 1.1fr; gap: 18px; align-items: stretch; }
+    .compare-card { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+    .compare-card h3 { font-family: var(--serif); font-size: 26px; font-weight: 400; }
+    .compare-card p { color: var(--muted); font-size: 13px; }
+    .mini-flow { display: grid; grid-template-columns: 74px 82px minmax(0, 1fr); gap: 7px; margin-top: 8px; }
+    .mini-pane { border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 9px 8px; min-height: 86px; }
+    .mini-pane b { display: block; font-size: 8px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .mini-pane span { display: block; font-size: 9px; color: var(--muted); margin-top: 4px; }
+    .mini-paper span { height: 5px; border-radius: 2px; background: rgba(17,17,17,.12); margin-top: 5px; }
+    .mini-paper span.g { background: var(--green-bg); border: 1px solid var(--green-line); height: 9px; }
+    .mini-paper span.r { background: var(--red-bg); border: 1px solid var(--red-line); height: 9px; }
+    ins { text-decoration: none; }
+    .before-shot { width: 100%; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+    .callout { display: flex; gap: 9px; font-size: 12px; color: var(--muted); }
+    .callout b { color: var(--ink); font-weight: 600; }
+    .dot { width: 7px; height: 7px; border-radius: 99px; background: var(--red); flex: none; margin-top: 7px; }
+    .dot.green { background: var(--green); }
+    .device-shell { border: 1px solid var(--line-strong); border-radius: 22px; overflow: hidden; background: #efefec; box-shadow: 0 30px 80px -50px rgba(0,0,0,.35); }
+    .chrome { height: 34px; display: flex; align-items: center; gap: 6px; padding: 0 14px; border-bottom: 1px solid var(--line); background: #f4f4f1; }
+    .traffic { width: 8px; height: 8px; border-radius: 99px; background: rgba(17,17,17,.16); }
+    .chrome .url { margin-left: 14px; flex: 1; max-width: 360px; border: 1px solid var(--line); background: #fff; color: var(--faint); border-radius: 7px; padding: 3px 9px; font-size: 10px; }
+    .workspace { background: var(--paper); min-height: 760px; display: flex; flex-direction: column; }
+    .appbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 22px; border-bottom: 1px solid var(--line); background: rgba(250,250,247,.94); }
+    .brand { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 22px; }
+    .brand .mark { width: 28px; height: 28px; border-radius: 99px; background: var(--ink); color: #fff; display: grid; place-items: center; font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+    .nav { display: flex; gap: 5px; align-items: center; }
+    .nav span { border: 1px solid transparent; border-radius: 999px; padding: 6px 11px; font-size: 11px; color: var(--muted); }
+    .nav span.active { border-color: var(--line-strong); color: var(--ink); background: #fff; }
+    .appbar-right { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--muted); }
+    .model { display: flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; background: #fff; }
+    .model i { width: 6px; height: 6px; background: var(--green); border-radius: 99px; display: block; }
+    .ws-grid { display: grid; grid-template-columns: 218px 292px minmax(0, 1fr); min-height: 0; flex: 1; }
+    .queue { border-right: 1px solid var(--line); padding: 18px 14px; background: rgba(255,255,255,.38); }
+    .queue-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; padding: 0 6px; }
+    .queue-head span { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .queue-head b { font-size: 11px; font-weight: 500; color: var(--faint); }
+    .q-item { border: 1px solid transparent; border-radius: 12px; padding: 10px 10px 9px; display: flex; gap: 9px; align-items: start; margin-bottom: 3px; }
+    .q-item.active { background: #fff; border-color: var(--line-strong); }
+    .q-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--faint); margin-top: 6px; flex: none; }
+    .q-dot.draft { background: #c18a2f; }
+    .q-dot.approved { background: var(--ink); }
+    .q-dot.applied { background: var(--green); }
+    .q-item .co { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+    .q-item .role { font-family: var(--serif); font-size: 16px; line-height: 1.1; margin-top: 2px; }
+    .q-item .st { font-size: 9px; color: var(--faint); margin-top: 4px; letter-spacing: .05em; text-transform: uppercase; }
+    .queue-foot { margin-top: 16px; padding: 12px 10px 0; border-top: 1px solid var(--line); font-size: 10px; color: var(--muted); line-height: 1.5; }
+    .queue-foot a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+    .match { border-right: 1px solid var(--line); padding: 20px 18px; background: rgba(255,255,255,.6); }
+    .job-kicker { font-size: 10px; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
+    .job-title { font-family: var(--serif); font-size: 28px; line-height: 1.02; margin: 5px 0 4px; letter-spacing: -.02em; }
+    .job-company { font-size: 12px; font-weight: 600; color: var(--muted); }
+    .score-row { display: flex; align-items: center; gap: 14px; margin: 20px 0 16px; }
+    .score { width: 70px; height: 70px; border-radius: 99px; display: grid; place-items: center; background: conic-gradient(var(--ink) 0 72%, rgba(17,17,17,.09) 72% 100%); position: relative; flex: none; }
+    .score::before { content: ""; position: absolute; inset: 5px; border-radius: 99px; background: #fff; }
+    .score span { position: relative; font-family: var(--serif); font-size: 23px; line-height: 1; }
+    .score-copy b { display: block; font-size: 12px; }
+    .score-copy span { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .block-label { display: flex; justify-content: space-between; align-items: baseline; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 15px 0 8px; }
+    .block-label b { color: var(--ink); font-weight: 500; letter-spacing: 0; text-transform: none; font-size: 10px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chip { border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px; font-size: 10px; background: #fff; color: var(--ink); }
+    .chip.matched { border-color: var(--green-line); background: var(--green-bg); color: var(--green); }
+    .chip.missing { border-color: var(--red-line); background: var(--red-bg); color: var(--red); }
+    .verdict { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; }
+    .verdict .line { font-size: 11px; color: var(--muted); margin-top: 6px; }
+    .verdict .line b { color: var(--ink); font-weight: 600; }
+    .reanalyze { margin-top: 14px; width: 100%; border: 1px solid var(--line-strong); background: #fff; border-radius: 999px; padding: 8px 10px; font: 600 10px var(--sans); letter-spacing: .02em; cursor: pointer; }
+    .reanalyze:hover { border-color: var(--ink); }
+    .review { min-width: 0; display: flex; flex-direction: column; background: #f3f3ef; }
+    .review-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: rgba(250,250,247,.9); flex-wrap: wrap; }
+    .review-title { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+    .review-title b { color: var(--ink); font-weight: 600; }
+    .status { border: 1px solid var(--line-strong); background: #fff; border-radius: 999px; padding: 4px 8px; font-size: 9px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+    .tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .legend { display: flex; align-items: center; gap: 9px; font-size: 9px; color: var(--muted); }
+    .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
+    .legend .g { background: var(--green-bg); border: 1px solid var(--green-line); }
+    .legend .r { background: var(--red-bg); border: 1px solid var(--red-line); }
+    .toggle { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted); cursor: pointer; user-select: none; }
+    .toggle input { accent-color: var(--ink); margin: 0; }
+    .seg { display: flex; border: 1px solid var(--line-strong); border-radius: 999px; overflow: hidden; background: #fff; }
+    .seg button { border: 0; background: transparent; padding: 5px 9px; font: 500 9px var(--sans); color: var(--muted); cursor: pointer; }
+    .seg button.active { background: var(--ink); color: #fff; }
+    .revert { border: 0; background: transparent; color: var(--muted); font: 500 10px var(--sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 4px; }
+    .revert:hover { color: var(--red); }
+    .paper-wrap { padding: 18px 18px 0; overflow: auto; flex: 1; }
+    .paper { background: #fff; border: 1px solid rgba(17,17,17,.14); max-width: 720px; margin: 0 auto; padding: 28px 34px 32px; font-family: Georgia, "Times New Roman", serif; color: #171717; font-size: 10.2px; line-height: 1.38; }
+    .paper-head { text-align: center; }
+    .paper-name { font-size: 23px; font-weight: 700; line-height: 1.1; letter-spacing: -.01em; }
+    .paper-contact { font-size: 9.4px; margin-top: 4px; color: #222; }
+    .paper section { margin-top: 14px; }
+    .paper h4 { margin: 0 0 4px; padding-bottom: 2px; border-bottom: 1px solid #222; font-size: 9.3px; letter-spacing: .1em; text-transform: uppercase; }
+    .paper p { margin: 0; }
+    .paper ul { margin: 2px 0 0; padding-left: 12px; }
+    .paper li { margin: 0 0 1px; padding-left: 1px; }
+    .paper .entry { margin-top: 7px; }
+    .paper .entry:first-of-type { margin-top: 0; }
+    .paper .row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .paper .role { font-weight: 700; }
+    .paper .date { font-size: 9px; color: #333; white-space: nowrap; }
+    .paper .company { font-style: italic; color: #333; font-size: 9.7px; }
+    .paper .skills div { margin-bottom: 2px; }
+    .paper .skills b { font-weight: 700; }
+    .add { background: var(--green-bg); color: var(--green); border-bottom: 1px solid var(--green-line); border-radius: 2px; }
+    .del { background: var(--red-bg); color: var(--red); text-decoration: line-through; text-decoration-thickness: 1px; border-radius: 2px; }
+    .diff-note { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--green-line); background: var(--green-bg); color: var(--green); border-radius: 999px; padding: 1px 5px; font: 600 7.5px var(--sans); letter-spacing: .04em; text-transform: uppercase; vertical-align: 1px; margin-left: 3px; }
+    .diff-note.red { border-color: var(--red-line); background: var(--red-bg); color: var(--red); }
+    .final-mode .add { background: none; color: inherit; border-bottom: 0; }
+    .final-mode .del { display: none; }
+    .final-mode .diff-note { display: none; }
+    .review-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--line); background: rgba(250,250,247,.96); }
+    .review-foot .hint { font-size: 10px; color: var(--muted); max-width: 300px; }
+    .foot-actions { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+    .btn { border: 1px solid var(--line-strong); background: #fff; border-radius: 999px; padding: 8px 14px; font: 600 10px var(--sans); color: var(--ink); cursor: pointer; }
+    .btn:hover { border-color: var(--ink); }
+    .btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+    .btn.primary:hover { opacity: .85; }
+    .btn:disabled { opacity: .42; cursor: not-allowed; }
+    .btn.small { padding: 6px 10px; font-size: 9px; }
+    .revert-pop { position: absolute; right: 18px; top: 52px; z-index: 20; width: 292px; border: 1px solid var(--line-strong); background: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 18px 40px -28px rgba(0,0,0,.3); display: none; }
+    .revert-pop.open { display: block; }
+    .revert-pop h4 { margin: 0 0 5px; font-size: 12px; }
+    .revert-pop p { font-size: 10px; color: var(--muted); }
+    .revert-pop .row { display: flex; gap: 6px; justify-content: flex-end; margin-top: 12px; }
+    .review { position: relative; }
+    .anatomy { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .anatomy .card { padding: 20px; }
+    .anatomy .swatch { height: 44px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--line); }
+    .anatomy .swatch.g { background: var(--green-bg); border-color: var(--green-line); }
+    .anatomy .swatch.r { background: var(--red-bg); border-color: var(--red-line); }
+    .anatomy .swatch.n { background: #fff; }
+    .anatomy p { color: var(--muted); font-size: 12px; margin-top: 5px; }
+    .anatomy b { font-size: 12px; }
+    .plan-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .plan-card { padding: 22px; }
+    .plan-card .num { font-family: var(--serif); font-size: 30px; color: var(--faint); line-height: 1; }
+    .plan-card h3 { margin: 8px 0 6px; font-size: 15px; }
+    .plan-card p { color: var(--muted); font-size: 12.5px; }
+    .plan-card ul { margin: 10px 0 0; padding-left: 16px; color: var(--muted); font-size: 12px; }
+    .plan-card li { margin-bottom: 4px; }
+    .risk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+    .risk-grid .card { padding: 20px; }
+    .risk-grid p { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .flow-card { padding: 26px; }
+    .flow-card svg { width: 100%; height: auto; display: block; }
+    .flow-legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 11px; color: var(--muted); }
+    .flow-legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--ink); vertical-align: 3px; margin-right: 5px; }
+    .flow-legend i.dashed { border-top-style: dashed; }
+    .decision { padding: 26px; }
+    .decision fieldset { border: 0; padding: 0; margin: 0 0 22px; }
+    .decision legend { font-size: 13px; font-weight: 600; margin-bottom: 9px; }
+    .opt { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 6px; cursor: pointer; background: #fff; }
+    .opt:hover { border-color: var(--line-strong); }
+    .opt input { accent-color: var(--ink); margin-top: 3px; }
+    .opt b { display: block; font-size: 12px; }
+    .opt span { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .decision-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--line); }
+    .decision-foot .status { border: 0; background: transparent; padding: 0; font-size: 11px; color: var(--muted); letter-spacing: 0; text-transform: none; }
+    .footer { margin-top: 80px; color: var(--muted); font-size: 11px; display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+    .footer b { color: var(--ink); font-weight: 600; }
+    @media (max-width: 1080px) {
+      .compare { grid-template-columns: 1fr; }
+      .ws-grid { grid-template-columns: 180px 260px minmax(0,1fr); }
+      .paper { padding: 22px 26px; }
+    }
+    @media (max-width: 900px) {
+      .stat-grid { grid-template-columns: 1fr 1fr; }
+      .ws-grid { grid-template-columns: 1fr; }
+      .queue, .match { display: none; }
+      .review-bar { align-items: flex-start; }
+      .anatomy, .plan-grid, .risk-grid { grid-template-columns: 1fr; }
+      .paper-wrap { padding: 12px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Design review · 2026-11-05 · Job Search / Calm Focus</div>
+    <h1>One job.<br>One workspace.</h1>
+    <p class="lede">The AI analysis and the tailored resume are leaving the modal. The new surface is a full-screen application workspace: queue on the left, job fit in the middle, the real resume document on the right, and changes in green and red.</p>
+    <div class="stat-grid">
+      <div class="stat"><div class="n">Full</div><div class="k">screen review, not 840px modal</div></div>
+      <div class="stat"><div class="n">1</div><div class="k">resume document, click any text</div></div>
+      <div class="stat"><div class="n">2</div><div class="k">change colors: green add, red remove</div></div>
+      <div class="stat"><div class="n">0</div><div class="k">autofill or background submission</div></div>
+    </div>
+  </header>
+
+  <section class="section" id="before-after">
+    <div class="section-head">
+      <h2>Before → after</h2>
+      <p>The current modal forces the resume into a narrow column under the analysis. The workspace gives the document most of the screen and keeps the queue visible.</p>
+    </div>
+    <div class="compare">
+      <div class="card compare-card">
+        <div class="pill red">Current</div>
+        <h3>Everything in one modal</h3>
+        <img class="before-shot" src="current-modal.png" alt="Current job detail modal with the tailored resume squeezed below the AI analysis">
+        <div class="callout"><span class="dot"></span><span><b>Resume is ~760px wide</b> inside a 1258px modal, after a long analysis and job description.</span></div>
+        <div class="callout"><span class="dot"></span><span><b>Scrolling mixes concerns.</b> Job facts, model choice, analysis, resume, PDF, and apply actions share one scroll.</span></div>
+        <div class="callout"><span class="dot"></span><span><b>No change map.</b> The user cannot see what the model changed versus the base resume.</span></div>
+      </div>
+      <div class="card compare-card">
+        <div class="pill green">Target</div>
+        <h3>A dedicated application workspace</h3>
+        <p style="margin-top:2px">Route <code>/apply/[id]</code>. The modal becomes a compact job card; the workspace takes over for review, edit, approve, and apply.</p>
+        <div class="callout"><span class="dot green"></span><span><b>Resume gets the right pane</b> at roughly 60–65% of a 1440px screen, on a paper surface.</span></div>
+        <div class="callout"><span class="dot green"></span><span><b>Queue + fit + document</b> are visible at once. The queue shows what is next without leaving the job.</span></div>
+        <div class="callout"><span class="dot green"></span><span><b>Green/red change map</b> with a Final toggle. Highlights never reach the PDF.</span></div>
+        <div class="callout"><span class="dot green"></span><span><b>Revert is explicit:</b> whole resume to base, or one field at a time.</span></div>
+        <div class="mini-flow" aria-hidden="true">
+          <div class="mini-pane"><b>Queue</b><span>Perplexity</span><span>Sarvam</span><span>Snowflake</span></div>
+          <div class="mini-pane"><b>Fit</b><span>72% match</span><span>5 / 7 required</span><span>2 / 3 preferred</span></div>
+          <div class="mini-pane mini-paper"><b>Resume</b><span class="g"></span><span class="r"></span><span></span><span></span><span class="g"></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="workspace">
+    <div class="section-head">
+      <h2>The workspace</h2>
+      <p>This is the proposed screen. Click the changes toggle, switch to Final, and open Revert to see the intended states.</p>
+    </div>
+
+    <div class="device-shell" aria-label="Mockup of the proposed application workspace">
+      <div class="chrome" aria-hidden="true">
+        <span class="traffic"></span><span class="traffic"></span><span class="traffic"></span>
+        <div class="url">localhost:3000/apply/perplexity-ml-research</div>
+      </div>
+      <div class="workspace">
+        <div class="appbar">
+          <div class="brand"><span class="mark">JS</span> Job Search</div>
+          <div class="nav" aria-label="Primary">
+            <span>Discover</span>
+            <span class="active">Apply</span>
+            <span>Tracker</span>
+            <span>Resumes</span>
+          </div>
+          <div class="appbar-right">
+            <span class="model"><i></i> Muse Spark 1.3</span>
+            <span>Settings</span>
+          </div>
+        </div>
+
+        <div class="ws-grid">
+          <aside class="queue" aria-label="Apply queue">
+            <div class="queue-head"><span>Apply queue</span><b>5</b></div>
+            <div class="q-item active">
+              <span class="q-dot draft"></span>
+              <div><div class="co">Perplexity</div><div class="role">ML Research Engineer</div><div class="st">Draft · editing</div></div>
+            </div>
+            <div class="q-item">
+              <span class="q-dot approved"></span>
+              <div><div class="co">Sarvam AI</div><div class="role">DevOps Engineer</div><div class="st">Approved</div></div>
+            </div>
+            <div class="q-item">
+              <span class="q-dot approved"></span>
+              <div><div class="co">Snowflake</div><div class="role">Database Engineer</div><div class="st">Approved</div></div>
+            </div>
+            <div class="q-item">
+              <span class="q-dot applied"></span>
+              <div><div class="co">Cohere</div><div class="role">Research Internship</div><div class="st">Applied</div></div>
+            </div>
+            <div class="q-item">
+              <span class="q-dot"></span>
+              <div><div class="co">Stripe</div><div class="role">Backend Engineer</div><div class="st">Queued</div></div>
+            </div>
+            <div class="queue-foot">One at a time. Everything visible.<br><a href="#flow">Back to job list →</a></div>
+          </aside>
+
+          <section class="match" aria-label="Job fit and analysis">
+            <div class="job-kicker">Applied AI · Berlin</div>
+            <div class="job-title">ML Research Engineer</div>
+            <div class="job-company">Perplexity</div>
+            <div class="score-row">
+              <div class="score"><span>72%</span></div>
+              <div class="score-copy"><b>Possible match</b><span>PyTorch is the direct overlap.<br>Core research gaps remain visible.</span></div>
+            </div>
+            <div class="block-label">Required <b>5 / 7 matched</b></div>
+            <div class="chips">
+              <span class="chip matched">PyTorch</span><span class="chip matched">Python</span><span class="chip matched">RAG</span><span class="chip matched">Search</span><span class="chip matched">Evaluation</span><span class="chip missing">Distributed training</span><span class="chip missing">Representation learning</span>
+            </div>
+            <div class="block-label">Preferred <b>2 / 3 matched</b></div>
+            <div class="chips">
+              <span class="chip matched">Contrastive learning</span><span class="chip matched">Multilingual</span><span class="chip missing">Publication record</span>
+            </div>
+            <div class="verdict">
+              <div class="block-label" style="margin-top:0">AI verdict <b>POSSIBLE</b></div>
+              <div class="line"><b>Keep visible:</b> no production distributed-training evidence, no publication record.</div>
+              <div class="line"><b>Lead with:</b> PyTorch project work, retrieval, evaluation, and PostgreSQL-backed systems.</div>
+            </div>
+            <button class="reanalyze" type="button">Re-tailor for this job</button>
+          </section>
+
+          <section class="review" id="review-pane" aria-label="Resume review">
+            <div class="review-bar">
+              <div class="review-title"><b>Resume</b><span class="status">Draft · editable</span></div>
+              <div class="tools">
+                <div class="legend" title="Only in review. The PDF is clean."><span><i class="g"></i>green: added / rewritten</span><span><i class="r"></i>red: removed from base</span></div>
+                <label class="toggle"><input id="changes-toggle" type="checkbox" checked> Show changes</label>
+                <div class="seg" role="group" aria-label="Resume view">
+                  <button type="button" id="view-changes" class="active">Changes</button>
+                  <button type="button" id="view-final">Final</button>
+                </div>
+                <button type="button" class="revert" id="revert-open">Revert to base</button>
+              </div>
+            </div>
+            <div class="revert-pop" id="revert-pop">
+              <h4>Restore the base resume?</h4>
+              <p>This creates a new draft from your base resume and discards the tailored edits for this job. The previous version stays in history.</p>
+              <div class="row"><button class="btn small" type="button" id="revert-cancel">Cancel</button><button class="btn small primary" type="button" id="revert-confirm">Restore base</button></div>
+            </div>
+
+            <div class="paper-wrap">
+              <article class="paper" id="paper">
+                <div class="paper-head">
+                  <div class="paper-name">Keshav Girish Rayas</div>
+                  <div class="paper-contact">Bangalore, Karnataka | +91 99018 65220 | keshav.rayas@gmail.com | linkedin.com/in/keshavgrayas | github.com/KeshavRayas</div>
+                </div>
+
+                <section>
+                  <h4>Summary</h4>
+                  <p><del class="del">Computer Science undergraduate with hands-on experience building backend and infrastructure-oriented systems.</del> <ins class="add">Backend engineer focused on distributed systems, cloud infrastructure, and reliable APIs, with hands-on PyTorch project work.</ins> <span class="diff-note">rewritten · 3 sources</span></p>
+                </section>
+
+                <section>
+                  <h4>Education</h4>
+                  <div class="row"><span class="role">B.E. in Computer Science and Engineering</span><span class="date">Expected 2026 | GPA: 8.1/10</span></div>
+                  <div class="row"><span>B.M.S. College of Engineering</span><span class="date">Bangalore, India</span></div>
+                </section>
+
+                <section>
+                  <h4>Experience</h4>
+                  <div class="entry">
+                    <div class="row"><span class="role">Software Intern — ERP System Development</span><span class="date">Feb 2026 — Present</span></div>
+                    <div class="company">B.M.S. College of Engineering, Bengaluru</div>
+                    <ul>
+                      <li><del class="del">Develop and maintain a scalable campus ERP platform using TypeScript, PostgreSQL, Prisma, Redis, and a modular monorepo architecture.</del> <ins class="add">Build and maintain a PostgreSQL-backed campus ERP platform with TypeScript, Prisma, and Redis across a multi-developer monorepo.</ins> <span class="diff-note">rewritten</span></li>
+                      <li>Build and debug backend APIs, authentication workflows, role-based access control, attendance systems, and data-driven application modules.</li>
+                      <li><ins class="add">Diagnose production and integration issues by tracing API behavior, database queries, logs, and cross-module dependencies.</ins> <span class="diff-note">added</span></li>
+                      <li>Design and optimize database queries, schemas, and application logic for correctness, performance, and scalability.</li>
+                      <li><del class="del">Contribute to automated testing and engineering workflows using Playwright, ESLint, Prettier, TypeScript tooling, and CI-oriented development practices.</del> <ins class="add">Automate release checks with Playwright, ESLint, Prettier, and TypeScript tooling in a CI-oriented workflow.</ins> <span class="diff-note">rewritten</span></li>
+                    </ul>
+                  </div>
+                </section>
+
+                <section>
+                  <h4>Projects</h4>
+                  <div class="entry">
+                    <div class="row"><span class="role">SignBridge: Real-Time Sign Language Recognition</span><span class="date">Next.js, FastAPI, PyTorch, MediaPipe</span></div>
+                    <ul>
+                      <li>Developed a real-time sign language recognition system using WebSockets and a GAT + Transformer model for low-latency prediction.</li>
+                      <li>Designed a Docker-based monorepo separating frontend, backend, training, and inference components with reusable APIs.</li>
+                    </ul>
+                  </div>
+                  <div class="entry">
+                    <div class="row"><span class="role">RL for Energy Grid Optimization</span><span class="date">Python, PyTorch, Stable-Baselines3, Gymnasium</span></div>
+                    <ul>
+                      <li>Developed a deep reinforcement learning framework for renewable energy dispatch, battery control, and supply-demand balancing.</li>
+                      <li>Built a custom Gymnasium environment and evaluated PPO, DQN, and multi-agent approaches under dynamic constraints.</li>
+                    </ul>
+                  </div>
+                  <div class="entry">
+                    <div class="row"><span class="role">Weather Analysis and Prediction using ML</span><span class="date">Python, TensorFlow, Scikit-learn, Streamlit</span></div>
+                    <ul>
+                      <li>Built an end-to-end time-series forecasting system using LSTM, ARIMA, and SARIMA for temperature, precipitation, and wind speed.</li>
+                    </ul>
+                  </div>
+                </section>
+
+                <section class="skills">
+                  <h4>Skills</h4>
+                  <div><b>Languages:</b> Python, Go, TypeScript, SQL, JavaScript, HTML, CSS</div>
+                  <div><b>Core CS:</b> Data Structures &amp; Algorithms, OOP, Operating Systems, Computer Networks, RDBMS, Distributed Systems Fundamentals</div>
+                  <div><b>Backend:</b> REST APIs, Authentication, RBAC, PostgreSQL, Prisma, Redis, WebSockets</div>
+                  <div><b>Cloud / Infrastructure:</b> AWS Fundamentals, Linux, Docker, CI/CD, Monitoring &amp; Debugging, Infrastructure Automation</div>
+                  <div><b>Developer Tools:</b> Git/GitHub, Playwright, Turborepo, Bun, ESLint, Prettier</div>
+                  <div><b>Libraries / Frameworks:</b> FastAPI, Next.js, PyTorch, TensorFlow, Scikit-learn, Pandas, NumPy</div>
+                  <div><b>Soft Skills:</b> Problem Solving, Debugging, Communication, Team Collaboration, Ownership</div>
+                </section>
+              </article>
+            </div>
+
+            <div class="review-foot">
+              <div class="hint" id="foot-hint">Approve to unlock the company application link. The PDF is clean; green/red is review-only.</div>
+              <div class="foot-actions">
+                <button class="btn" type="button">Save draft</button>
+                <button class="btn" type="button" id="approve-btn">Approve resume</button>
+                <button class="btn primary" type="button" id="open-btn" disabled>Open application ↗</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="change-map">
+    <div class="section-head">
+      <h2>The change map</h2>
+      <p>Green and red are a review layer over the document, not a new resume style. The final document and PDF stay clean.</p>
+    </div>
+    <div class="anatomy">
+      <div class="card">
+        <div class="swatch g"></div>
+        <b>Green — added or rewritten</b>
+        <p>Text produced by tailoring for this job, or rewritten from a cited base-resume item. Hover shows the source count and opens “revert this change”.</p>
+      </div>
+      <div class="card">
+        <div class="swatch r"></div>
+        <b>Red — removed from base</b>
+        <p>Base-resume text that the model removed or replaced. Visible only in Changes mode; hidden in Final and never rendered into the PDF.</p>
+      </div>
+      <div class="card">
+        <div class="swatch n"></div>
+        <b>Plain — unchanged</b>
+        <p>Facts and bullets kept from the base resume. Company, dates, school, project names, and skills are enriched from the base; the model only rewrites prose.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="flow">
+    <div class="section-head">
+      <h2>Full flow</h2>
+      <p>Same loop as Tsenta: queue, tailor, review, approve, apply. No autofill and no background submission.</p>
+    </div>
+    <div class="card flow-card">
+      <svg viewBox="0 0 1200 330" role="img" aria-label="Flow from discover to application tracker with a queue, workspace, approval, and manual apply">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ink)"></path>
+          </marker>
+          <marker id="arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--faint)"></path>
+          </marker>
+          <style>
+            .node { fill: var(--card); stroke: var(--line-strong); stroke-width: 1; }
+            .node-dark { fill: var(--ink); stroke: var(--ink); }
+            .node-label { fill: var(--ink); font: 600 12px var(--sans); }
+            .node-label-light { fill: #fff; font: 600 12px var(--sans); }
+            .node-sub { fill: var(--muted); font: 400 9px var(--sans); }
+            .node-sub-light { fill: rgba(255,255,255,.62); font: 400 9px var(--sans); }
+            .edge { stroke: var(--ink); stroke-width: 1.2; fill: none; }
+            .edge-muted { stroke: var(--faint); stroke-width: 1; fill: none; stroke-dasharray: 4 4; }
+            .annot { fill: var(--muted); font: 500 10px var(--sans); }
+            .state { fill: var(--paper); stroke: var(--line); }
+            .state-label { fill: var(--muted); font: 600 9px var(--sans); letter-spacing: .08em; }
+          </style>
+        </defs>
+
+        <title>Application flow</title>
+        <g id="row-one">
+          <rect class="node" x="14" y="54" width="142" height="58" rx="12"></rect>
+          <text class="node-label" x="30" y="78">Discover</text>
+          <text class="node-sub" x="30" y="93">ranked jobs</text>
+          <path class="edge" d="M156 83 L188 83" marker-end="url(#arrow)"></path>
+
+          <rect class="node" x="192" y="54" width="142" height="58" rx="12"></rect>
+          <text class="node-label" x="208" y="78">Apply queue</text>
+          <text class="node-sub" x="208" y="93">one decision</text>
+          <path class="edge" d="M334 83 L366 83" marker-end="url(#arrow)"></path>
+
+          <rect class="node-dark" x="370" y="54" width="158" height="58" rx="12"></rect>
+          <text class="node-label-light" x="386" y="78">Workspace</text>
+          <text class="node-sub-light" x="386" y="93">fit + document</text>
+          <path class="edge" d="M528 83 L560 83" marker-end="url(#arrow)"></path>
+
+          <rect class="node" x="564" y="54" width="158" height="58" rx="12"></rect>
+          <text class="node-label" x="580" y="78">Review changes</text>
+          <text class="node-sub" x="580" y="93">green / red</text>
+          <path class="edge" d="M722 83 L754 83" marker-end="url(#arrow)"></path>
+
+          <rect class="node" x="758" y="54" width="142" height="58" rx="12"></rect>
+          <text class="node-label" x="774" y="78">Edit inline</text>
+          <text class="node-sub" x="774" y="93">click any text</text>
+          <path class="edge" d="M900 83 L932 83" marker-end="url(#arrow)"></path>
+
+          <rect class="node" x="936" y="54" width="142" height="58" rx="12"></rect>
+          <text class="node-label" x="952" y="78">Approve</text>
+          <text class="node-sub" x="952" y="93">locks the draft</text>
+        </g>
+
+        <g id="row-two">
+          <rect class="node" x="936" y="206" width="142" height="58" rx="12"></rect>
+          <text class="node-label" x="952" y="230">Open page</text>
+          <text class="node-sub" x="952" y="245">records OPENED</text>
+          <path class="edge" d="M1007 112 L1007 198" marker-end="url(#arrow)"></path>
+
+          <rect class="node" x="758" y="206" width="142" height="58" rx="12"></rect>
+          <text class="node-label" x="774" y="230">I’ve applied</text>
+          <text class="node-sub" x="774" y="245">explicit APPLIED</text>
+          <path class="edge" d="M936 235 L908 235" marker-end="url(#arrow)"></path>
+
+          <rect class="node" x="564" y="206" width="158" height="58" rx="12"></rect>
+          <text class="node-label" x="580" y="230">Tracker</text>
+          <text class="node-sub" x="580" y="245">saved / applied</text>
+          <path class="edge" d="M758 235 L730 235" marker-end="url(#arrow)"></path>
+
+          <rect class="node" x="370" y="206" width="158" height="58" rx="12"></rect>
+          <text class="node-label" x="386" y="230">Base resume</text>
+          <text class="node-sub" x="386" y="245">versions kept</text>
+          <path class="edge-muted" d="M449 206 L449 120" marker-end="url(#arrow-muted)"></path>
+          <text class="annot" x="460" y="166">revert to base</text>
+
+          <rect class="node" x="192" y="206" width="142" height="58" rx="12"></rect>
+          <text class="node-label" x="208" y="230">Re-tailor</text>
+          <text class="node-sub" x="208" y="245">new version</text>
+          <path class="edge-muted" d="M263 206 L263 120" marker-end="url(#arrow-muted)"></path>
+          <text class="annot" x="274" y="166">model changes the resume</text>
+        </g>
+
+        <g id="states">
+          <rect class="state" x="14" y="286" width="70" height="24" rx="99"></rect>
+          <text class="state-label" x="28" y="302">DRAFT</text>
+          <path class="edge" d="M86 298 L104 298" marker-end="url(#arrow)"></path>
+          <rect class="state" x="108" y="286" width="86" height="24" rx="99"></rect>
+          <text class="state-label" x="118" y="302">APPROVED</text>
+          <path class="edge" d="M196 298 L214 298" marker-end="url(#arrow)"></path>
+          <rect class="state" x="218" y="286" width="76" height="24" rx="99"></rect>
+          <text class="state-label" x="232" y="302">OPENED</text>
+          <path class="edge" d="M296 298 L314 298" marker-end="url(#arrow)"></path>
+          <rect class="state" x="318" y="286" width="78" height="24" rx="99"></rect>
+          <text class="state-label" x="332" y="302">APPLIED</text>
+          <text class="annot" x="420" y="302">editing an approved resume reopens DRAFT</text>
+        </g>
+      </svg>
+      <div class="flow-legend"><span><i></i> user action</span><span><i class="dashed"></i> loop / state change</span><span>No autofill. No background submission.</span></div>
+    </div>
+  </section>
+
+  <section class="section" id="plan">
+    <div class="section-head">
+      <h2>Implementation plan</h2>
+      <p>Small enough to ship without changing the evidence rules or the PDF pipeline.</p>
+    </div>
+    <div class="plan-grid">
+      <div class="card plan-card">
+        <div class="num">01</div>
+        <h3>New full-screen route</h3>
+        <p><code>/apply/[id]</code> loads the job, analysis, current draft, and profile on the server. A client <code>ApplyWorkspace</code> owns the queue, edit state, diff toggle, and approval.</p>
+        <ul><li>Extract the document + editor from <code>JobDetailPanel</code>.</li><li>Keep the modal for job facts and a “Review application” CTA.</li><li>Preserve Calm Focus: hairlines, serif display, no new chrome.</li></ul>
+      </div>
+      <div class="card plan-card">
+        <div class="num">02</div>
+        <h3>Change map</h3>
+        <p>Compare each tailored field to the cited base item. Word-level LCS for prose; whole-bullet for arrays. Green for added/rewritten, red for removed. “Final” hides red and clears green.</p>
+        <ul><li>Highlights are UI-only; <code>ResumeDocument</code> and Typst never receive them.</li><li>Hover a change → source count, “revert this change”.</li><li>Ignore whitespace and punctuation-only moves to reduce noise.</li></ul>
+      </div>
+      <div class="card plan-card">
+        <div class="num">03</div>
+        <h3>Revert + versions</h3>
+        <p><code>POST /api/jobs/:id/revert</code> creates a new version from the base resume. A per-field revert restores that field from the cited base item. Both set status back to DRAFT.</p>
+        <ul><li>Keep the previous version in history.</li><li>Approval is always explicit after a revert or re-tailor.</li><li>Never mutate <code>JobMatch.score</code>.</li></ul>
+      </div>
+      <div class="card plan-card">
+        <div class="num">04</div>
+        <h3>Manual apply handoff</h3>
+        <p>Approve unlocks “Open application”. Opening records <code>OPENED</code> and opens the company page in a new tab. “I’ve applied” records <code>APPLIED</code>.</p>
+        <ul><li>No form filling, logins, OTPs, or browser automation.</li><li>Disable opening until the current version is approved.</li><li>Keep “Check live” on the job card.</li></ul>
+      </div>
+    </div>
+    <div class="risk-grid">
+      <div class="card">
+        <b>Risks</b>
+        <p>Word-level diffs can look noisy on heavily rewritten bullets. Mitigation: default to block-level for bullets, word-level for summary; offer “only changed lines”. Long resumes need a scrollable paper pane with the action bar fixed. Mobile collapses the queue and fit into drawers.</p>
+      </div>
+      <div class="card">
+        <b>Acceptance</b>
+        <p>The resume gets at least 60% of a 1440px viewport. A first-time user can queue a job, see fit, edit text, revert one change, approve, open the company page, and mark applied without returning to the modal. The PDF contains no green/red or diff annotations.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="decisions">
+    <div class="section-head">
+      <h2>Decisions to lock</h2>
+      <p>Pick one per row, then queue the answers. Everything else is already implied by your request.</p>
+    </div>
+    <form class="card decision" id="decision-form" data-lavish-question="workspace-decisions">
+      <fieldset>
+        <legend>1. Default resume view</legend>
+        <label class="opt"><input type="radio" name="defaultView" value="changes" checked><span><b>Changes (recommended)</b><span>Open in green/red, with a one-click Final view.</span></span></label>
+        <label class="opt"><input type="radio" name="defaultView" value="final"><span><b>Final</b><span>Open clean, with a one-click Changes view.</span></span></label>
+      </fieldset>
+      <fieldset>
+        <legend>2. Revert scope</legend>
+        <label class="opt"><input type="radio" name="revert" value="both" checked><span><b>Whole resume + per-change (recommended)</b><span>“Revert to base” plus a per-field revert on hover.</span></span></label>
+        <label class="opt"><input type="radio" name="revert" value="whole"><span><b>Whole resume only</b><span>Simpler, but one wrong bullet means reverting everything.</span></span></label>
+      </fieldset>
+      <fieldset>
+        <legend>3. Job modal after this</legend>
+        <label class="opt"><input type="radio" name="modal" value="compact" checked><span><b>Compact summary + CTA (recommended)</b><span>Facts, verdict, “Review application”. No resume or long analysis.</span></span></label>
+        <label class="opt"><input type="radio" name="modal" value="remove"><span><b>Remove the modal</b><span>Clicking a card goes straight to the workspace.</span></span></label>
+      </fieldset>
+      <fieldset>
+        <legend>4. Queue source</legend>
+        <label class="opt"><input type="radio" name="queue" value="trail" checked><span><b>Existing QUEUED decisions (recommended)</b><span>Reuse the tracker; no new table or status model.</span></span></label>
+        <label class="opt"><input type="radio" name="queue" value="new"><span><b>Separate apply queue</b><span>Cleaner language, but duplicates tracker state.</span></span></label>
+      </fieldset>
+      <fieldset>
+        <legend>5. Three-column density</legend>
+        <label class="opt"><input type="radio" name="density" value="three" checked><span><b>Queue + fit + resume (recommended)</b><span>Closest to Tsenta; queue and fit stay visible.</span></span></label>
+        <label class="opt"><input type="radio" name="density" value="two"><span><b>Queue + resume only</b><span>Fit and analysis collapse into a top disclosure.</span></span></label>
+      </fieldset>
+      <div class="decision-foot">
+        <button class="btn primary" type="submit">Queue decisions</button>
+        <span class="status" id="decision-status">No answers queued yet.</span>
+      </div>
+    </form>
+  </section>
+
+  <footer class="footer">
+    <div><b>Design source:</b> Calm Focus tokens in <code>DESIGN_CALM_FOCUS.md</code> and <code>src/app/globals.css</code> — Instrument Serif + Inter, paper #fafaf7, hairline rules, 900ms entrances. This is a proposed evolution of the locked system for the review workspace.</div>
+    <div><b>Status:</b> design review · no code changes yet.</div>
+  </footer>
+</div>
+
+<script>
+  const paper = document.getElementById('paper');
+  const changesToggle = document.getElementById('changes-toggle');
+  const viewChanges = document.getElementById('view-changes');
+  const viewFinal = document.getElementById('view-final');
+  const revertOpen = document.getElementById('revert-open');
+  const revertPop = document.getElementById('revert-pop');
+  const revertCancel = document.getElementById('revert-cancel');
+  const revertConfirm = document.getElementById('revert-confirm');
+  const approveBtn = document.getElementById('approve-btn');
+  const openBtn = document.getElementById('open-btn');
+  const footHint = document.getElementById('foot-hint');
+
+  function setView(mode) {
+    const final = mode === 'final';
+    paper.classList.toggle('final-mode', final);
+    changesToggle.checked = !final;
+    viewChanges.classList.toggle('active', !final);
+    viewFinal.classList.toggle('active', final);
+  }
+  changesToggle.addEventListener('change', () => setView(changesToggle.checked ? 'changes' : 'final'));
+  viewChanges.addEventListener('click', () => setView('changes'));
+  viewFinal.addEventListener('click', () => setView('final'));
+
+  revertOpen.addEventListener('click', () => revertPop.classList.toggle('open'));
+  revertCancel.addEventListener('click', () => revertPop.classList.remove('open'));
+  revertConfirm.addEventListener('click', () => {
+    revertPop.classList.remove('open');
+    revertOpen.textContent = 'Base resume restored';
+    paper.querySelectorAll('.add, .del').forEach((el) => {
+      el.classList.remove('add', 'del');
+      if (el.tagName === 'DEL') el.remove();
+    });
+    paper.querySelectorAll('.diff-note').forEach((el) => el.remove());
+    setView('final');
+    footHint.textContent = 'Base resume draft restored. Re-tailor when ready.';
+  });
+
+  approveBtn.addEventListener('click', () => {
+    approveBtn.textContent = 'Approved';
+    approveBtn.disabled = true;
+    openBtn.disabled = false;
+    document.querySelector('.review .status').textContent = 'Approved';
+    footHint.textContent = 'Approved. Open the company page, submit there, then confirm I’ve applied.';
+  });
+
+  const form = document.getElementById('decision-form');
+  const status = document.getElementById('decision-status');
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(form).entries());
+    const text = 'Workspace decisions — defaultView: ' + data.defaultView + '; revert: ' + data.revert + '; modal: ' + data.modal + '; queue: ' + data.queue + '; density: ' + data.density;
+    if (window.lavish?.queuePrompt) {
+      window.lavish.queuePrompt(text, {
+        tag: 'choice',
+        text: 'Lock the application workspace design',
+        element: form,
+        data: { question: 'workspace-decisions', ...data }
+      });
+      status.textContent = 'Queued to Lavish.';
+    } else {
+      status.textContent = 'Answers: ' + text;
+    }
+  });
+</script>
+</body>
+</html>

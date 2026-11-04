@@ -1,103 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { X, ArrowUpRight, Briefcase, FileText, Sparkles } from "lucide-react";
+import { ArrowUpRight, Briefcase, FileText } from "lucide-react";
 import type { JobSearchResult } from "@/lib/types";
 import { formatDaysAgo, formatSalary, enumLabel } from "@/lib/utils";
-import {
-  activeConnection,
-  activeModelFor,
-  loadLlmStore,
-  saveLlmStore,
-  subscribeLlmStore,
-  llmHeaders,
-  type LlmStore,
-} from "@/lib/llm/client";
-import { formatUsage } from "@/lib/llm/byok";
-import { TailorDraftEditor } from "@/components/TailorDraftEditor";
-import type { ResumeProfileView } from "@/components/ResumeDocument";
 
-interface LlmCallMeta {
-  usage?: {
-    prompt_tokens: number | null;
-    completion_tokens: number | null;
-    model: string;
-  } | null;
-  provider?: { source: string; display: string; model: string | null } | null;
-}
+// ─── Job detail modal ────────────────────────────────────────────────────────
+// The modal is a compact job card. Analysis, tailoring, resume editing, and
+// approval live in the full-screen application workspace at /apply/[id].
 
-function UsageLine({ meta }: { meta: LlmCallMeta }) {
-  if (!meta.usage) return null;
-  return (
-    <p className="text-[11px] text-black/45">
-      {formatUsage(meta.usage)}
-      {meta.provider ? ` · via ${meta.provider.display}` : ""}
-    </p>
-  );
-}
-
-interface JobAnalysisView extends LlmCallMeta {
+interface TailoredSummary {
   id: string;
-  summary: string;
-  matchedSkills: string[];
-  missingSkills: string[];
-  potentialConcerns: string[];
-  verdict: "STRONG" | "POSSIBLE" | "WEAK";
-  verdictReasons: string[];
-  cached?: boolean;
-}
-
-interface TailoredItemView {
-  id: string;
-  kind: string;
-  fields: Record<string, string | boolean | string[]>;
-  provenance: {
-    sourceIds: string[];
-    change: "UNCHANGED" | "REWRITE" | "REORDER" | "COMBINE";
-  };
-}
-
-interface TailoredSectionView {
-  id: string;
-  type: string;
-  title: string;
-  items: TailoredItemView[];
-}
-
-interface AtsResultView {
-  textExtractable: boolean;
-  charCount: number;
-  sections: {
-    summary: boolean;
-    experience: boolean;
-    education: boolean;
-    skills: boolean;
-  };
-  requiredSkillsFound: number;
-  requiredSkillsTotal: number;
-  matchedKeywords: string[];
-  missingKeywords: string[];
-  keywordCoverage: number;
-  warnings: string[];
-}
-
-interface TailoredResumeView extends LlmCallMeta {
-  id: string;
-  baseResumeId: string;
-  version?: number;
-  versionCount?: number;
-  sections: TailoredSectionView[];
+  version: number;
   status: "DRAFT" | "APPROVED";
   warnings: string[];
-  renderStatus?: "PENDING" | "SUCCESS" | "FAILED";
-  atsStatus?: "PENDING" | "CHECKED";
-  atsResult?: AtsResultView | null;
-  cached?: boolean;
+  sections: unknown[];
 }
 
-function nowMs() {
-  return Date.now();
+interface AnalysisSummary {
+  verdict: "STRONG" | "POSSIBLE" | "WEAK";
+  summary: string;
 }
 
 export function JobDetailPanel({
@@ -110,129 +33,43 @@ export function JobDetailPanel({
   onClose: () => void;
 }) {
   const job = useMemo(
-    () => jobs.find((j) => j.id === selectedId) ?? null,
+    () => jobs.find((item) => item.id === selectedId) ?? null,
     [jobs, selectedId],
   );
 
-  const [analysis, setAnalysis] = useState<JobAnalysisView | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
-
-  const [tailored, setTailored] = useState<TailoredResumeView | null>(null);
-  const [tailoring, setTailoring] = useState(false);
-  const [tailorError, setTailorError] = useState<string | null>(null);
-  const [profile, setProfile] = useState<ResumeProfileView | null>(null);
-  const [rendering, setRendering] = useState(false);
-
+  const [analysis, setAnalysis] = useState<AnalysisSummary | null>(null);
+  const [tailored, setTailored] = useState<TailoredSummary | null>(null);
   const [decision, setDecision] = useState<string | null>(null);
   const [deciding, setDeciding] = useState(false);
-  // Hydration gate: server-rendered buttons have no listeners until React
-  // hydrates (seconds on dev/Turbopack, longer on slow networks). Clicks in
-  // that window are silently lost — buttons stay disabled until mounted so
-  // the affordance is honest and e2e clicks can't race hydration.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration gate: first client render must match SSR (disabled), then enable
-    setMounted(true);
-  }, []);
   const [liveness, setLiveness] = useState<{
     alive: boolean;
     evidence: string | null;
   } | null>(null);
   const [checkingLive, setCheckingLive] = useState(false);
-
-  // ─── AI provider selection (keys live in Settings) ──────────────────────
-  const [llmStore, setLlmStore] = useState<LlmStore>({
-    connections: [],
-    activeId: null,
-    activeModel: null,
-  });
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is client-only; this syncs the store after hydration
-    setLlmStore(loadLlmStore());
-    return subscribeLlmStore(() => setLlmStore(loadLlmStore()));
-  }, []);
-  const activeLlm = activeConnection(llmStore);
-  const activeModel = activeModelFor(llmStore);
-
-  // ─── Long-call timer + cancel (Phase 5A) ─────────────────────────────────
-  // One in-flight model call at a time in practice; tracked by endpoint so
-  // cancel always hits the right request.
-  const [callTimer, setCallTimer] = useState<{
-    endpoint: string;
-    elapsed: number;
-  } | null>(null);
-  const callControllers = useRef(new Map<string, AbortController>());
-  const callTick = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  function startCallTimer(endpoint: string) {
-    const startedAt = nowMs();
-    setCallTimer({ endpoint, elapsed: 0 });
-    if (callTick.current) clearInterval(callTick.current);
-    callTick.current = setInterval(() => {
-      setCallTimer((t) =>
-        t && t.endpoint === endpoint
-          ? { ...t, elapsed: Math.floor((Date.now() - startedAt) / 1000) }
-          : t,
-      );
-    }, 1000);
-  }
-
-  function stopCallTimer(endpoint: string) {
-    if (callTick.current) {
-      clearInterval(callTick.current);
-      callTick.current = null;
-    }
-    callControllers.current.delete(endpoint);
-    setCallTimer((t) => (t?.endpoint === endpoint ? null : t));
-  }
-
-  function cancelCall(endpoint: string) {
-    callControllers.current.get(endpoint)?.abort();
-  }
-
-  function timerFor(endpoint: string): string {
-    return callTimer?.endpoint === endpoint ? ` · ${callTimer.elapsed}s` : "";
-  }
-
-  // Full description toggle (pre-apply detail). Reset with the selection.
   const [showFullDesc, setShowFullDesc] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  // Intentional reset-on-selection-change: clears the previous job's
-  // cached AI results before fetching the new selection below.
-  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration gate; this component is client-only
+    setMounted(true);
+  }, []);
+
+  /* eslint-disable react-hooks/set-state-in-effect -- reset when selection changes */
   useEffect(() => {
     setAnalysis(null);
-    setAnalysisError(null);
     setTailored(null);
-    setTailorError(null);
     setDecision(null);
     setLiveness(null);
     setShowFullDesc(false);
-    // A new selection orphans any in-flight model call: abort it so a late
-    // response can't land in the wrong job's panel.
-    for (const c of callControllers.current.values()) c.abort();
-    if (callTick.current) clearInterval(callTick.current);
-    setCallTimer(null);
     if (!selectedId) return;
     let cancelled = false;
-    // One request returns every persisted artifact for this job. Previously
-    // the panel made separate HTTP calls for each artifact.
-    fetch(`/api/jobs/${selectedId}/state`)
+    fetch(`/api/jobs/${selectedId}/state`, { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
         setAnalysis(data.analysis ?? null);
-        setProfile(data.profile ?? null);
-        if (data.tailored?.sections) {
-          setTailored({
-            ...data.tailored,
-            versionCount: data.versionCount ?? 1,
-          });
-        }
-        if (data.decision?.status) {
-          setDecision(data.decision.status);
-        }
+        setTailored(data.tailored ?? null);
+        if (data.decision?.status) setDecision(data.decision.status);
       })
       .catch(() => {});
     return () => {
@@ -241,140 +78,7 @@ export function JobDetailPanel({
   }, [selectedId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  async function runJobPost<T>(
-    busy: boolean,
-    setBusy: (v: boolean) => void,
-    setError: (e: string | null) => void,
-    endpoint: string,
-    refresh: boolean,
-    fallback: string,
-    onSuccess: (data: T) => void,
-    blocked = false,
-  ) {
-    if (!selectedId || busy || blocked) return;
-    setBusy(true);
-    setError(null);
-    const controller = new AbortController();
-    callControllers.current.set(endpoint, controller);
-    startCallTimer(endpoint);
-    try {
-      const res = await fetch(
-        `/api/jobs/${selectedId}${endpoint}${refresh ? "?refresh=1" : ""}`,
-        {
-          method: "POST",
-          headers: llmHeaders(activeLlm, activeModel),
-          signal: controller.signal,
-        },
-      );
-      const data = (await res.json()) as T & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? fallback);
-      onSuccess(data);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setError("Cancelled.");
-      } else {
-        setError(err instanceof Error ? err.message : fallback);
-      }
-    } finally {
-      stopCallTimer(endpoint);
-      setBusy(false);
-    }
-  }
-
-  function cancelButton(endpoint: string, busy: boolean) {
-    if (!busy || callTimer?.endpoint !== endpoint) return null;
-    return (
-      <button
-        onClick={() => cancelCall(endpoint)}
-        className="text-[12px] text-black/50 underline underline-offset-4 hover:text-black transition-colors duration-300"
-      >
-        Cancel
-      </button>
-    );
-  }
-
-  function runAnalysis(refresh: boolean) {
-    return runJobPost(
-      analyzing,
-      setAnalyzing,
-      setAnalysisError,
-      "/analyze",
-      refresh,
-      "Analysis failed",
-      setAnalysis,
-    );
-  }
-
-  async function prepareResume(refresh: boolean) {
-    if (!selectedId || tailoring) return;
-    setTailoring(true);
-    setTailorError(null);
-    const controller = new AbortController();
-    callControllers.current.set("/tailor", controller);
-    try {
-      if (!analysis) {
-        setAnalyzing(true);
-        startCallTimer("/analyze");
-        const aRes = await fetch(`/api/jobs/${selectedId}/analyze`, {
-          method: "POST",
-          headers: llmHeaders(activeLlm, activeModel),
-          signal: controller.signal,
-        });
-        const aData = await aRes.json();
-        stopCallTimer("/analyze");
-        setAnalyzing(false);
-        if (!aRes.ok) throw new Error(aData.error ?? "Analysis failed");
-        setAnalysis(aData);
-      }
-      startCallTimer("/tailor");
-      const res = await fetch(
-        `/api/jobs/${selectedId}/tailor${refresh ? "?refresh=1" : ""}`,
-        {
-          method: "POST",
-          headers: llmHeaders(activeLlm, activeModel),
-          signal: controller.signal,
-        },
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Tailoring failed");
-      setTailored(data);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setTailorError("Cancelled.");
-      } else {
-        setTailorError(err instanceof Error ? err.message : "Resume failed");
-      }
-    } finally {
-      stopCallTimer("/analyze");
-      stopCallTimer("/tailor");
-      setAnalyzing(false);
-      setTailoring(false);
-    }
-  }
-
-  async function runRender(refresh: boolean) {
-    if (!selectedId || rendering) return;
-    setRendering(true);
-    setTailorError(null);
-    try {
-      const res = await fetch(
-        `/api/jobs/${selectedId}/pdf${refresh ? "?refresh=1" : ""}`,
-        { method: "POST" },
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Render failed");
-      const refreshed = await fetch(`/api/jobs/${selectedId}/tailor`).then(
-        (r) => (r.ok ? r.json() : null),
-      );
-      if (refreshed?.sections) setTailored(refreshed);
-    } catch (err) {
-      setTailorError(err instanceof Error ? err.message : "Render failed");
-    } finally {
-      setRendering(false);
-    }
-  }
-
-  async function setJobDecision(status: string, openUrl = false) {
+  async function setJobDecision(status: string) {
     if (!selectedId || deciding) return;
     setDeciding(true);
     try {
@@ -386,10 +90,8 @@ export function JobDetailPanel({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Decision failed");
       setDecision(data.status);
-      // Opening the URL records OPENED — it never implies APPLIED.
-      if (openUrl && job) window.open(job.applyUrl, "_blank", "noopener");
-    } catch (err) {
-      setTailorError(err instanceof Error ? err.message : "Decision failed");
+    } catch {
+      // The workspace and tracker remain available; no destructive fallback.
     } finally {
       setDeciding(false);
     }
@@ -403,527 +105,243 @@ export function JobDetailPanel({
         method: "POST",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Liveness check failed");
-      setLiveness({ alive: data.alive, evidence: data.evidence });
+      if (res.ok) setLiveness(data);
     } catch {
-      setLiveness({ alive: false, evidence: "check failed" });
+      // Keep the last known state.
     } finally {
       setCheckingLive(false);
     }
   }
 
-  function close() {
-    onClose();
-  }
-
-  if (!selectedId) return null;
+  if (!job) return null;
 
   const workModeLabel =
-    job?.workMode === "REMOTE"
+    job.workMode === "REMOTE"
       ? "Remote"
-      : job?.workMode === "HYBRID"
+      : job.workMode === "HYBRID"
         ? "Hybrid"
         : "On-site";
+  const resumeStatus = tailored?.status ?? null;
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      <div className="bg-[#FAFAF7] border-b border-black/10 px-6 py-4 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-black flex items-center justify-center">
-            <Briefcase className="w-4 h-4 text-white" />
+    <div className="flex flex-col h-full">
+      <header className="shrink-0 flex items-center justify-between gap-4 px-6 py-5 border-b border-black/10">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-full bg-[#111] text-white grid place-items-center text-[12px] font-semibold shrink-0">
+            {job.company.name.slice(0, 1)}
           </div>
-          <span className="text-title font-bold">Job Detail</span>
+          <div className="min-w-0">
+            <div className="text-[11px] uppercase tracking-[0.12em] text-black/45">
+              Job detail
+            </div>
+            <div className="text-[13px] font-medium truncate">
+              {job.company.name}
+            </div>
+          </div>
         </div>
         <button
-          onClick={close}
-          className="w-9 h-9 rounded-full border border-black/10 flex items-center justify-center hover:bg-black hover:text-white transition-all duration-500"
+          onClick={onClose}
+          aria-label="Close job detail"
+          className="w-9 h-9 rounded-full border border-black/15 grid place-items-center text-black/50 hover:text-black hover:border-black/35 transition-colors"
         >
-          <X className="w-4 h-4" />
+          ×
         </button>
-      </div>
+      </header>
 
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {!job && (
-          <div className="flex items-center justify-center h-full px-6">
-            <div className="text-center">
-              <span className="text-display block mb-4">👋</span>
-              <p className="text-title font-bold mb-3">Select a role</p>
-              <p className="text-body font-medium text-black/55 leading-relaxed">
-                View:
-                <br />
-                &bull; Requirements
-                <br />
-                &bull; Skills
-                <br />
-                &bull; Salary
-                <br />
-                &bull; Application link
-                <br />
-                &bull; Company details
-              </p>
-            </div>
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 py-7 space-y-7">
+        <section>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-[0.14em] border border-black/10 rounded-full px-2.5 py-1 text-black/55">
+              {enumLabel(job.company.companyType)}
+            </span>
+            <span className="text-[11px] text-black/45">
+              {job.source} · {formatDaysAgo(job.postedAt)}
+            </span>
           </div>
-        )}
+          <h1 className="font-serif-calm text-[38px] leading-[1.02] mt-3">
+            {job.title}
+          </h1>
+          <div className="text-[14px] font-semibold text-black/55 mt-1">
+            {job.company.name}
+          </div>
+          <div className="text-[12px] text-black/55 mt-2">
+            {[
+              job.location,
+              workModeLabel,
+              formatSalary(
+                job.salaryMin ?? undefined,
+                job.salaryMax ?? undefined,
+                job.salaryCurr ?? undefined,
+              ),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </div>
+        </section>
 
-        {job && (
-          <div className="p-6 space-y-6">
-            {/* Header Section */}
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full border border-black/10 flex items-center justify-center bg-black/[0.03] shrink-0">
-                <span className="text-title font-black">
-                  {job.company.name.charAt(0)}
-                </span>
-              </div>
-              <div>
-                <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/10 text-black/55">
-                  {job.company.companyType === "STARTUP" ? "Startup" : "MNC"}
-                </span>
-              </div>
-            </div>
-
-            {/* Job Meta Section */}
-            <div>
-              <h2 className="font-serif-calm text-[32px] leading-tight">
-                {job.title}
-              </h2>
-              <p className="text-body font-bold text-black/55 mt-1">
-                {job.company.name}
-              </p>
-            </div>
-
-            <hr className="border-t border-black/10" />
-
-            {/* Role facts — everything stored about this posting, no model
-                call needed. Read this before applying. */}
-            <div>
-              <h3 className="font-serif-calm text-[22px] mb-3">Role facts</h3>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
-                {(
-                  [
-                    ["Type", enumLabel(job.jobType)],
-                    ["Level", enumLabel(job.experience)],
-                    ["Work mode", workModeLabel],
-                    ["Location", job.location ?? null],
-                    [
-                      "Posted",
-                      job.postedAt ? formatDaysAgo(job.postedAt) : null,
-                    ],
-                    ["Source", enumLabel(job.source)],
-                  ] as [string, string | null][]
-                ).map(([label, value]) =>
-                  value ? (
-                    <div key={label} className="min-w-0">
-                      <dt className="text-[11px] uppercase tracking-[0.12em] text-black/45">
-                        {label}
-                      </dt>
-                      <dd className="text-[13px] truncate" title={value}>
-                        {value}
-                      </dd>
-                    </div>
-                  ) : null,
-                )}
-              </dl>
-            </div>
-
-            {/* Salary Section */}
-            <div className="flex items-center gap-3 p-4 border border-black/10 rounded-[14px] bg-black/[0.03]">
-              <span className="text-title font-bold">
-                {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurr)}
-              </span>
-            </div>
-
-            {/* Skills / Tags Section */}
-            {job.skills.length > 0 && (
-              <div>
-                <h3 className="text-title font-bold mb-3">Skills</h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {job.skills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="px-2.5 py-1 rounded-full bg-black/[0.04] text-[11px] font-medium text-black/60"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+        <section>
+          <h2 className="font-serif-calm text-[22px] mb-3">Role facts</h2>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
+            {(
+              [
+                ["Level", enumLabel(job.experience ?? "ENTRY")],
+                ["Type", job.jobType ? enumLabel(job.jobType) : null],
+                ["Work mode", workModeLabel],
+                ["Location", job.location ?? null],
+                ["Source", enumLabel(job.source)],
+                ["Posted", formatDaysAgo(job.postedAt)],
+              ] as [string, string | null][]
+            ).map(([label, value]) =>
+              value ? (
+                <div key={label}>
+                  <dt className="text-[10px] uppercase tracking-[0.12em] text-black/40">
+                    {label}
+                  </dt>
+                  <dd className="text-[13px] mt-0.5">{value}</dd>
                 </div>
-              </div>
+              ) : null,
             )}
+          </dl>
+        </section>
 
-            {/* About Section — full text on demand; apply only after reading */}
-            <div>
-              <h3 className="font-serif-calm text-[22px] mb-3">About</h3>
-              <p
-                className={`text-body font-medium text-black/55 leading-relaxed ${
-                  showFullDesc ? "whitespace-pre-line" : "line-clamp-4"
-                }`}
-              >
-                {job.description}
-              </p>
-              <button
-                onClick={() => setShowFullDesc((v) => !v)}
-                className="mt-2 text-[13px] underline underline-offset-4 decoration-black/20 hover:decoration-black transition-all duration-300"
-              >
-                {showFullDesc ? "Show less ↑" : "Read full posting ↓"}
-              </button>
+        {job.skills.length > 0 && (
+          <section>
+            <h2 className="font-serif-calm text-[22px] mb-3">Skills</h2>
+            <div className="flex flex-wrap gap-1.5">
+              {job.skills.map((skill) => (
+                <span
+                  key={skill}
+                  className="rounded-full bg-black/[0.04] px-2.5 py-1 text-[11px] text-black/60"
+                >
+                  {skill}
+                </span>
+              ))}
             </div>
+          </section>
+        )}
 
-            {/* AI Analysis Section */}
-            <div className="p-4 border border-black/10 rounded-[14px] bg-black/[0.03] space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="font-serif-calm text-[22px] flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" />
-                  AI Analysis
-                </h3>
+        <section>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-serif-calm text-[22px]">About</h2>
+            <button
+              type="button"
+              onClick={() => setShowFullDesc((open) => !open)}
+              className="text-[11px] text-black/50 underline underline-offset-4 hover:text-black"
+            >
+              {showFullDesc ? "Show less" : "Read full posting"}
+            </button>
+          </div>
+          <p
+            className={`text-[13px] leading-relaxed text-black/65 mt-3 whitespace-pre-line ${
+              showFullDesc ? "" : "line-clamp-[8]"
+            }`}
+          >
+            {job.description}
+          </p>
+        </section>
+
+        <section className="rounded-[18px] border border-black/10 bg-white p-5">
+          <div className="flex items-start gap-3">
+            <span className="w-8 h-8 rounded-full bg-black/[0.04] grid place-items-center shrink-0">
+              <Briefcase className="w-3.5 h-3.5 text-black/50" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-serif-calm text-[22px]">Application</h2>
+              <p className="text-[12px] text-black/55 mt-1">
+                Analysis, tailoring, editing, approval, and the apply handoff
+                happen in the workspace. The resume gets the full screen.
+              </p>
+              <div className="flex flex-wrap items-center gap-2 mt-3">
                 {analysis && (
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/10 bg-white ${
-                      analysis.verdict === "STRONG"
-                        ? "text-green-700"
-                        : analysis.verdict === "POSSIBLE"
-                          ? "text-yellow-700"
-                          : "text-red-600"
-                    }`}
-                  >
-                    {analysis.verdict}
+                  <span className="rounded-full border border-black/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.08em] text-black/55">
+                    AI {analysis.verdict.toLowerCase()}
+                  </span>
+                )}
+                <span className="rounded-full border border-black/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.08em] text-black/55">
+                  {resumeStatus === "APPROVED"
+                    ? `Resume approved · v${tailored?.version ?? 1}`
+                    : resumeStatus === "DRAFT"
+                      ? `Resume draft · v${tailored?.version ?? 1}`
+                      : "Resume not started"}
+                </span>
+                {tailored && tailored.warnings.length > 0 && (
+                  <span className="rounded-full border border-amber-600/20 bg-amber-50 px-2.5 py-1 text-[10px] text-amber-900/80">
+                    {tailored.warnings.length} warning
+                    {tailored.warnings.length === 1 ? "" : "s"}
                   </span>
                 )}
               </div>
-
-              {analysis && (
-                <div className="space-y-2">
-                  <p className="text-body font-medium leading-relaxed">
-                    {analysis.summary}
-                  </p>
-                  {analysis.verdictReasons.length > 0 && (
-                    <ul className="text-body font-medium text-black/55 leading-relaxed list-disc pl-5">
-                      {analysis.verdictReasons.map((r) => (
-                        <li key={r}>{r}</li>
-                      ))}
-                    </ul>
-                  )}
-                  {analysis.missingSkills.length > 0 && (
-                    <p className="text-body font-medium">
-                      <span className="font-bold">Gaps: </span>
-                      {analysis.missingSkills.join(", ")}
-                    </p>
-                  )}
-                  {analysis.potentialConcerns.length > 0 && (
-                    <p className="text-body font-medium">
-                      <span className="font-bold">Concerns: </span>
-                      {analysis.potentialConcerns.join("; ")}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {analysisError && (
-                <p className="text-body font-bold text-red">{analysisError}</p>
-              )}
-
-              <div className="flex items-center justify-between gap-3">
-                <label
-                  htmlFor="job-ai-model"
-                  className="text-[11px] uppercase tracking-[0.12em] text-black/45"
-                >
-                  Model
-                </label>
-                <select
-                  id="job-ai-model"
-                  value={
-                    activeLlm && activeModel
-                      ? `${activeLlm.id}::${activeModel}`
-                      : ""
-                  }
-                  onChange={(e) => {
-                    const [connectionId, ...rest] = e.target.value.split("::");
-                    const model = rest.join("::");
-                    const next = connectionId
-                      ? {
-                          ...llmStore,
-                          activeId: connectionId,
-                          activeModel: model,
-                        }
-                      : { ...llmStore, activeId: null, activeModel: null };
-                    saveLlmStore(next);
-                    setLlmStore(next);
-                  }}
-                  className="max-w-[62%] bg-white border border-black/10 rounded-[12px] px-3 py-2 text-[13px] outline-none focus:border-black/30"
-                >
-                  <option value="">Server default</option>
-                  {llmStore.connections.map((connection) =>
-                    (connection.models ?? []).map((model) => (
-                      <option
-                        key={`${connection.id}::${model}`}
-                        value={`${connection.id}::${model}`}
-                      >
-                        {connection.label} · {model}
-                      </option>
-                    )),
-                  )}
-                </select>
-              </div>
-              <p className="text-[11px] text-black/45">
-                {activeLlm && activeModel
-                  ? `Using ${activeLlm.label} · ${activeModel}.`
-                  : "Using the server default provider."}{" "}
-                <Link
-                  href="/settings"
-                  className="underline underline-offset-4 hover:text-black"
-                >
-                  Manage keys in Settings
-                </Link>
-              </p>
-
-              <button
-                onClick={() => runAnalysis(!!analysis)}
-                disabled={!mounted || analyzing}
-                className="w-full flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
+              <Link
+                href={`/apply/${job.id}`}
+                className="inline-flex items-center justify-center gap-2 mt-4 w-full rounded-full bg-[#111] text-white px-5 py-3 text-[13px] font-medium hover:opacity-85 transition-opacity"
               >
-                <Sparkles className="w-4 h-4" />
-                {analyzing
-                  ? `Analyzing…${timerFor("/analyze")}`
-                  : analysis
-                    ? "Re-analyze Job"
-                    : "Analyze Job"}
-              </button>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[12px] font-medium text-black/55">
-                  {activeLlm && activeModel
-                    ? `Using ${activeLlm.label} · ${activeModel}`
-                    : "Using the server default provider"}
-                  {" — one call per job, result saved and reused."}
-                </p>
-                {cancelButton("/analyze", analyzing)}
-              </div>
-              {analysis && <UsageLine meta={analysis} />}
-            </div>
-
-            {/* Tailored Resume Section */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="font-serif-calm text-[22px] flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Tailored Resume
-                </h3>
-                {tailored && (
-                  <span className="px-2.5 py-1 rounded-full text-[11px] uppercase tracking-[0.12em] border border-black/10 bg-white text-black/55">
-                    {tailored.sections.reduce((n, s) => n + s.items.length, 0)}{" "}
-                    items
-                    {tailored.version ? ` · v${tailored.version}` : ""}
-                  </span>
-                )}
-              </div>
-
-              {tailored ? (
-                <div className="space-y-3">
-                  <TailorDraftEditor
-                    key={`${tailored.id}-${tailored.status}`}
-                    jobId={selectedId}
-                    draft={tailored}
-                    profile={profile}
-                    onUpdated={(next) =>
-                      setTailored(next as TailoredResumeView)
-                    }
-                  />
-
-                  {tailorError && (
-                    <p className="text-[13px] text-red-700/80">{tailorError}</p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => prepareResume(true)}
-                    disabled={!mounted || tailoring}
-                    className="text-[12px] text-black/50 underline underline-offset-4 hover:text-black disabled:opacity-50"
-                  >
-                    {tailoring
-                      ? `Re-tailoring…${timerFor("/tailor")}`
-                      : "Start over from the base resume"}
-                  </button>
-                  {cancelButton("/tailor", tailoring)}
-
-                  {tailored.status === "APPROVED" && (
-                    <div className="p-3 border border-black/10 rounded-[12px] bg-white space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[12px] font-bold uppercase tracking-widest">
-                          PDF + ATS check
-                        </span>
-                        {tailored.renderStatus === "SUCCESS" && (
-                          <a
-                            href={`/api/jobs/${selectedId}/pdf/download`}
-                            className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/30 text-black"
-                          >
-                            Download
-                          </a>
-                        )}
-                      </div>
-
-                      {tailored.atsStatus === "CHECKED" &&
-                        tailored.atsResult && (
-                          <ul className="space-y-1 text-[12px] text-black/55">
-                            <li>
-                              {tailored.atsResult.textExtractable ? "✓" : "?"}{" "}
-                              text layer ·{" "}
-                              {tailored.atsResult.keywordCoverage
-                                ? Math.round(
-                                    tailored.atsResult.keywordCoverage * 100,
-                                  )
-                                : 0}
-                              % keyword coverage
-                            </li>
-                            <li>
-                              {tailored.atsResult.requiredSkillsFound}/
-                              {tailored.atsResult.requiredSkillsTotal} required
-                              skills present
-                            </li>
-                            {tailored.atsResult.warnings
-                              .slice(0, 6)
-                              .map((w) => (
-                                <li key={w}>⚠ {w}</li>
-                              ))}
-                          </ul>
-                        )}
-
-                      {tailored.renderStatus === "FAILED" && (
-                        <p className="text-[13px] text-red-700/80">
-                          Render failed — check server logs. Content is
-                          untouched.
-                        </p>
-                      )}
-
-                      <button
-                        onClick={() =>
-                          runRender(tailored.renderStatus === "SUCCESS")
-                        }
-                        disabled={!mounted || rendering}
-                        className="w-full flex items-center justify-center gap-2 bg-white text-black font-medium px-4 py-2.5 rounded-full border border-black/10 text-[13px] hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
-                      >
-                        {rendering
-                          ? "Rendering…"
-                          : tailored.renderStatus === "SUCCESS"
-                            ? "Re-render PDF"
-                            : "Render PDF"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <p className="text-[12px] font-medium text-black/55">
-                    {analysis
-                      ? "Generate an editable draft from the analysis and your base resume."
-                      : "One click analyzes the job and builds your first draft."}
-                  </p>
-                  <button
-                    onClick={() => prepareResume(false)}
-                    disabled={!mounted || tailoring}
-                    className="w-full flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
-                  >
-                    <FileText className="w-4 h-4" />
-                    {tailoring
-                      ? `Preparing resume…${timerFor("/analyze") || timerFor("/tailor")}`
-                      : analysis
-                        ? "Tailor Resume"
-                        : "Analyze & Tailor Resume"}
-                  </button>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[12px] font-medium text-black/55">
-                      {tailorError
-                        ? tailorError
-                        : "You can edit every field before approving."}
-                    </p>
-                    {cancelButton("/tailor", tailoring)}
-                  </div>
-                </>
-              )}
+                <FileText className="w-4 h-4" />
+                {tailored ? "Continue application" : "Review & tailor resume"}
+                <ArrowUpRight className="w-4 h-4" />
+              </Link>
             </div>
           </div>
-        )}
+        </section>
       </div>
 
-      {/* Sticky Footer — application lifecycle (2.5.3/2.5.4) */}
-      {job && (
-        <div className="sticky bottom-0 bg-white border-t border-black/10 px-6 py-5 shrink-0 z-10 space-y-3">
-          {(decision || liveness) && (
-            <div className="flex flex-wrap items-center gap-2">
-              {decision && (
-                <span
-                  data-testid="decision-badge"
-                  className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] bg-[#111] text-white"
-                >
-                  {decision}
-                </span>
-              )}
-              {liveness && (
-                <span
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em] border border-black/10 bg-white ${liveness.alive ? "text-green-700" : "text-red-600"}`}
-                  title={liveness.evidence ?? undefined}
-                >
-                  {liveness.alive ? "● Live" : "● Closed?"}
-                </span>
-              )}
-            </div>
-          )}
-          <div className="flex gap-3">
-            <button
-              onClick={() => setJobDecision("OPENED", true)}
-              disabled={
-                !mounted ||
-                deciding ||
-                !tailored ||
-                tailored.status !== "APPROVED"
-              }
-              className="flex-1 flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
-            >
-              Open application
-              <ArrowUpRight className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setJobDecision("APPLIED")}
-              disabled={!mounted || deciding}
-              className="flex-1 flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
-            >
-              I&apos;ve applied
-            </button>
+      <footer className="shrink-0 border-t border-black/10 bg-white px-6 py-4 space-y-3">
+        {(decision || liveness) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {decision && (
+              <span
+                data-testid="decision-badge"
+                className="rounded-full bg-[#111] text-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
+              >
+                {decision}
+              </span>
+            )}
+            {liveness && (
+              <span
+                className={`rounded-full border border-black/10 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                  liveness.alive ? "text-green-700" : "text-red-600"
+                }`}
+                title={liveness.evidence ?? undefined}
+              >
+                {liveness.alive ? "● Live" : "● Closed?"}
+              </span>
+            )}
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setJobDecision("QUEUED")}
-              disabled={!mounted || deciding}
-              className="flex-1 text-[13px] font-medium px-3 py-2 rounded-full border border-black/10 hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
-            >
-              Queue
-            </button>
-            <button
-              onClick={() => setJobDecision("SAVED")}
-              disabled={!mounted || deciding}
-              className="flex-1 text-[13px] font-medium px-3 py-2 rounded-full border border-black/10 hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
-            >
-              Save
-            </button>
-            <button
-              onClick={() => setJobDecision("SKIPPED")}
-              disabled={!mounted || deciding}
-              className="flex-1 text-[13px] font-medium px-3 py-2 rounded-full border border-black/10 hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
-            >
-              Skip
-            </button>
-            <button
-              onClick={checkLiveness}
-              disabled={!mounted || checkingLive}
-              className="flex-1 text-[13px] font-medium px-3 py-2 rounded-full border border-black/10 hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
-            >
-              {checkingLive ? "Checking…" : "Check live"}
-            </button>
-          </div>
-          <p className="text-[12px] font-medium text-black/55">
-            {tailored?.status === "APPROVED"
-              ? "Approved resume ready. Opening records OPENED only — confirm with I’ve Applied after you submit."
-              : "Tailor and approve the resume to unlock the company application link."}
-          </p>
+        )}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setJobDecision("QUEUED")}
+            disabled={!mounted || deciding}
+            className="flex-1 rounded-full border border-black/10 px-3 py-2 text-[12px] font-medium hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
+          >
+            Queue
+          </button>
+          <button
+            onClick={() => setJobDecision("SAVED")}
+            disabled={!mounted || deciding}
+            className="flex-1 rounded-full border border-black/10 px-3 py-2 text-[12px] font-medium hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
+          >
+            Save
+          </button>
+          <button
+            onClick={() => setJobDecision("SKIPPED")}
+            disabled={!mounted || deciding}
+            className="flex-1 rounded-full border border-black/10 px-3 py-2 text-[12px] font-medium hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
+          >
+            Skip
+          </button>
+          <button
+            onClick={checkLiveness}
+            disabled={!mounted || checkingLive}
+            className="flex-1 rounded-full border border-black/10 px-3 py-2 text-[12px] font-medium hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
+          >
+            {checkingLive ? "Checking…" : "Check live"}
+          </button>
         </div>
-      )}
+        <p className="text-[11px] text-black/45">
+          The company application opens from the workspace after you approve the
+          resume.
+        </p>
+      </footer>
     </div>
   );
 }

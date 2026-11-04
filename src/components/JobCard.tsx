@@ -19,8 +19,16 @@ export function JobCard({
   onSelect?: (id: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [queued, setQueued] = useState(job.decisionStatus === "QUEUED");
+  const [queued, setQueued] = useState(
+    ["QUEUED", "OPENED", "SAVED"].includes(job.decisionStatus ?? ""),
+  );
   const applied = job.decisionStatus === "APPLIED";
+  const queueLabel =
+    job.decisionStatus === "OPENED"
+      ? "Application opened"
+      : job.decisionStatus === "SAVED"
+        ? "Saved for later"
+        : "In your apply queue";
 
   const meta = [
     job.location,
@@ -43,7 +51,7 @@ export function JobCard({
       // The detail panel still opens; the user can queue from there.
     } finally {
       setBusy(false);
-      onSelect?.(job.id);
+      window.location.assign(`/apply/${job.id}`);
     }
   }
 
@@ -99,7 +107,7 @@ export function JobCard({
           {applied
             ? "Applied — resume saved"
             : queued
-              ? "In your apply queue"
+              ? queueLabel
               : "Tailor, approve, then apply"}
         </span>
         {applied ? (
@@ -107,13 +115,12 @@ export function JobCard({
             Applied
           </span>
         ) : queued ? (
-          <button
-            type="button"
-            onClick={() => onSelect?.(job.id)}
+          <Link
+            href={`/apply/${job.id}`}
             className="px-4 py-1.5 rounded-full border border-black/15 text-[12px] font-medium hover:border-black/40 transition-colors"
           >
             Continue
-          </button>
+          </Link>
         ) : (
           <button
             type="button"

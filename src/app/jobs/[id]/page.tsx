@@ -112,10 +112,10 @@ export default async function JobDetailPage({ params }: { params: Params }) {
               Apply on {job.company.name} ↗
             </a>
             <Link
-              href={`/?selected=${job.id}`}
+              href={`/apply/${job.id}`}
               className="text-[13px] underline underline-offset-4 decoration-black/20 hover:decoration-black transition-all duration-500"
             >
-              Open in apply cockpit →
+              Open application workspace →
             </Link>
           </div>
         </div>

@@ -42,8 +42,9 @@ This file is the entry point for agents. Read it before changing code or data.
 5. **All page queries go through `src/lib/repositories/`.**
 6. **UI is locked to Calm Focus.** See `DESIGN_CALM_FOCUS.md`.
 7. **Never expose secrets.** `.env` is gitignored; provider API keys are entered
-   only in Settings → AI providers and stay in browser localStorage. The job
-   modal only selects a saved connection/model.
+   only in Settings → AI providers and stay in browser localStorage. The
+   application workspace only selects a saved connection/model; the compact job
+   modal has no model selector.
 
 ## Quick commands
 
@@ -73,6 +74,7 @@ bun run agent -- jobs show <jobId>
 bun run agent -- analyze <jobId>
 bun run agent -- tailor <jobId>
 bun run agent -- approve <jobId>
+bun run agent -- revert <jobId>
 bun run agent -- pdf <jobId>
 
 bun run agent -- decision <jobId> --status SAVED|APPLIED|QUEUED|OPENED|SKIPPED
@@ -105,6 +107,7 @@ All routes are unauthenticated and local-only.
 | GET/POST | `/api/jobs/:id/tailor`       | cached / run tailoring (POST)                                 |
 | PUT      | `/api/jobs/:id/tailor`       | save edits, reopens `DRAFT`                                   |
 | POST     | `/api/jobs/:id/approve`      | approve the current draft before PDF                          |
+| POST     | `/api/jobs/:id/revert`       | create a new draft from the base resume                       |
 | GET/POST | `/api/jobs/:id/pdf`          | PDF state / render + ATS (requires `APPROVED`)                |
 | GET      | `/api/jobs/:id/pdf/download` | download rendered PDF                                         |
 | GET/POST | `/api/jobs/:id/decision`     | tracker state                                                 |
@@ -134,6 +137,7 @@ bun run agent -- jobs list --limit 20
 bun run agent -- analyze <jobId>
 bun run agent -- tailor <jobId>        # creates an editable DRAFT
 bun run agent -- approve <jobId>       # required before PDF
+bun run agent -- revert <jobId>        # new draft from the base resume
 bun run agent -- pdf <jobId>
 bun run agent -- decision <jobId> --status APPLIED
 ```
@@ -161,12 +165,14 @@ sources → RawJob (Zod) → ingestion pipeline → Job (+ searchVector)
                                      │
 Profile, Resume ─────────────────────┼──→ matcher → JobMatch / NightlyRun / digest
                                      │
-Job → Queue (Apply) → Analyze → JobAnalysis
+Job → Queue (Apply) → /apply/[id] workspace
+    → Analyze → JobAnalysis (fit + required skills)
     → Tailor  → TailoredResume (DRAFT, evidence IDs, warnings)
-    → Document→ click-to-edit resume paper (ResumeDocument)
+    → Document→ click-to-edit resume paper; green/red change map
     → Approve → TailoredResume (APPROVED)
     → PDF     → storage/pdfs/... + ATS result (only APPROVED)
-    → Decision → tracker
+    → Revert  → new DRAFT from the base resume
+    → Decision → OPENED / APPLIED / tracker
 ```
 
 Key files: `src/lib/{sources,ingestion,matching,analysis,tailor,pdf,repositories}/`,

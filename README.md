@@ -62,6 +62,7 @@ bun run agent -- jobs list --limit 10
 bun run agent -- analyze <jobId>
 bun run agent -- tailor <jobId>
 bun run agent -- approve <jobId>
+bun run agent -- revert <jobId>
 bun run agent -- pdf <jobId>
 bun run agent -- decision <jobId> --status APPLIED
 bun run agent -- ingest
@@ -103,9 +104,10 @@ unlocks PDF rendering and the company application link. No LLM flow mutates
   `https://opencode.ai/inference/go/openai/v1` base URL.
 - The app supports multiple browser-local provider connections, managed only in
   **Settings → AI providers**. Add an OpenCode Go (or other) key once; saving
-  discovers the provider’s model list. Then pick one of those models in the job
-  panel. Keys never go to the server and are never logged.
-- The job panel no longer contains a key form or a free-text model field.
+  discovers the provider's model list. Then pick one of those models in the
+  application workspace.
+- The workspace has no key field or free-text model field. The compact job modal
+  has no model selector at all.
 
 ## Scheduling
 
@@ -149,7 +151,7 @@ not deployed.
 ## Layout
 
 ```text
-src/app/                 routes (discover, job detail, tracker, resumes, settings, ops, api)
+src/app/                 routes (discover, job detail, apply workspace, tracker, resumes, settings, ops, api)
 src/components/          UI (Calm Focus design + resume document)
 src/lib/sources/         one adapter per job board
 src/lib/ingestion/       normalize → validate → dedupe → upsert
@@ -167,7 +169,7 @@ e2e/                     Playwright specs
 
 ## Tests
 
-- `bun run test` — 16 files, pure unit tests, no DB, ~4s.
+- `bun run test` — 17 files, pure unit tests, no DB, ~3s.
 - `bun run test:integration` — DB-backed service tests; writes and deletes its
   own rows. Uses longer timeouts because Neon is remote.
 - `bun run test:e2e` — 17 Playwright tests against a dev server and the same

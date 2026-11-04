@@ -3,9 +3,10 @@
 Source: “Tsenta Demo”, Agnay Srivastava, 67s (`youtu.be/VZyPsWQVgfA`),
 reviewed 2026-11-04. The demo is mostly a silent screen recording.
 
-**Status 2026-11-04:** the resume-only loop is implemented — editable
-`DRAFT → APPROVED` resume, PDF after approval, and “open application + I’ve
-applied.” Cover letters and interview prep were removed; autofill is deferred.
+**Status 2026-11-05:** the resume-only loop is implemented — queue → full-screen
+workspace (fit + resume) → green/red changes → edit → approve → PDF →
+“open application + I’ve applied.” Cover letters and interview prep were
+removed; autofill is deferred.
 
 ## What Tsenta actually does
 

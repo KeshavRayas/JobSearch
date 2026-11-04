@@ -278,13 +278,13 @@ function enrichProjects(section: TailoredSection, base: ResumeData): void {
   }
 }
 
-function isContactLike(value: string): boolean {
+export function isContactLike(value: string): boolean {
   const text = value.trim();
   if (!text) return false;
   const email = /[\w.+-]+@[\w-]+\.[\w.]+/.test(text);
   const links = /linkedin\.com|github\.com/i.test(text);
   const pipes = (text.match(/\|/g) ?? []).length;
-  return (email && links) || (email && pipes >= 2);
+  return email && (links || pipes >= 1);
 }
 
 function normalizeGpa(raw: string): string {
@@ -440,4 +440,122 @@ export function skillCategories(
     }
   }
   return groups.filter((g) => g.items.length > 0);
+}
+
+/** Convert the base resume into the tailored contract shape (revert to base). */
+export function baseToTailoredData(base: ResumeData): TailoredResumeData {
+  const sections: TailoredSection[] = [];
+  for (const [sectionIndex, section] of (base.sections ?? []).entries()) {
+    const type = section.type ?? "custom";
+    const kind: TailoredItem["kind"] = (
+      [
+        "summary",
+        "experience",
+        "education",
+        "skills",
+        "projects",
+        "certifications",
+        "custom",
+      ].includes(type)
+        ? type
+        : "custom"
+    ) as TailoredItem["kind"];
+
+    const items: TailoredItem[] = [];
+    for (const [itemIndex, baseItem] of (section.items ?? []).entries()) {
+      const item = baseItem as unknown as Record<string, unknown>;
+      const id = str(item.id) || `base_${sectionIndex}_${itemIndex}`;
+      const fields: Record<string, unknown> = {};
+
+      if (type === "summary") {
+        const content = str(item.content);
+        if (!content || isContactLike(content)) continue;
+        fields.content = content;
+      } else if (type === "experience") {
+        for (const key of [
+          "title",
+          "company",
+          "startDate",
+          "endDate",
+          "description",
+        ]) {
+          if (typeof item[key] === "string") fields[key] = item[key];
+        }
+        fields.current = Boolean(item.current);
+        fields.bulletPoints = arr(item.bulletPoints);
+      } else if (type === "education") {
+        const parsed = parseDegree(
+          [str(item.degree), str(item.field)].filter(Boolean).join(" "),
+        );
+        fields.degree = parsed.degree || str(item.degree);
+        fields.field = "";
+        fields.endDate = parsed.endDate;
+        fields.gpa = parsed.gpa;
+        for (const key of ["school", "location", "startDate", "description"]) {
+          if (typeof item[key] === "string") fields[key] = item[key];
+        }
+      } else if (type === "projects") {
+        for (const key of ["name", "description"]) {
+          if (typeof item[key] === "string") fields[key] = item[key];
+        }
+        fields.technologies = arr(item.technologies);
+        fields.bulletPoints = arr(item.bulletPoints);
+      } else if (type === "skills") {
+        fields.category = str(item.category) || "Skills";
+        fields.skills = arr(item.skills);
+      } else if (type === "certifications") {
+        for (const key of ["name", "issuer", "date"]) {
+          if (typeof item[key] === "string") fields[key] = item[key];
+        }
+      } else {
+        for (const [key, value] of Object.entries(item)) {
+          if (key === "id") continue;
+          if (typeof value === "string" || typeof value === "boolean") {
+            fields[key] = value;
+          } else if (Array.isArray(value)) {
+            fields[key] = arr(value);
+          }
+        }
+      }
+
+      items.push({
+        id,
+        kind,
+        fields: fields as TailoredItem["fields"],
+        provenance: { sourceIds: [id], change: "UNCHANGED" },
+      });
+    }
+
+    if (items.length === 0) continue;
+    sections.push({
+      id: str(section.id) || `base_section_${sectionIndex}`,
+      type,
+      title: str(section.title) || "Section",
+      items,
+    });
+  }
+
+  if (sections.length === 0) {
+    return {
+      sections: [
+        {
+          id: "base_empty",
+          type: "summary",
+          title: "Summary",
+          items: [
+            {
+              id: "base_empty_item",
+              kind: "summary",
+              fields: { content: "" },
+              provenance: {
+                sourceIds: ["base_empty_item"],
+                change: "UNCHANGED",
+              },
+            },
+          ],
+        },
+      ],
+    };
+  }
+  return { sections };
 }

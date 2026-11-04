@@ -33,7 +33,7 @@ Browser
 Next.js Server Component / Route Handler
   │
   ├── src/lib/repositories/*      ← all page queries
-  ├── src/lib/{analysis,tailor,cover}/service.ts
+  ├── src/lib/{analysis,tailor,pdf}/service.ts
   ├── src/lib/matching/nightly.ts
   └── src/lib/ingestion/pipeline.ts
   │
@@ -97,11 +97,15 @@ explicit user action
 ```
 
 ```text
-Job → Analyze        → JobAnalysis
-Job → Tailor         → TailoredResume (DRAFT, evidence IDs + warnings)
-    → Edit / Save    → TailoredResume (DRAFT)
-    → Approve        → TailoredResume (APPROVED)
-    → PDF            → storage/pdfs + ATS result (APPROVED only)
+Job → Queue           → /apply/[id] workspace
+    → Analyze         → JobAnalysis (fit + required skills)
+    → Tailor          → TailoredResume (DRAFT, evidence IDs + warnings)
+    → Changes         → deterministic green/red diff (UI only)
+    → Edit / Save     → TailoredResume (DRAFT)
+    → Approve         → TailoredResume (APPROVED)
+    → PDF             → storage/pdfs + ATS result (APPROVED only)
+    → Revert          → new DRAFT from base resume
+    → Open / Applied  → ApplicationDecision
 ```
 
 Provider selection lives in `getDefaultProvider()`:
@@ -110,8 +114,8 @@ Provider selection lives in `getDefaultProvider()`:
 - anything else → `OpencodeCliProvider` (spawns `opencode run --format json`).
 
 BYOK: provider connections (base URL, model list, key) are stored in browser
-localStorage from Settings → AI providers. The job panel only selects a saved
-connection/model; it never accepts a key.
+localStorage from Settings → AI providers. The application workspace only
+selects a saved connection/model; keys never reach the server.
 
 ## Engineering rules
 

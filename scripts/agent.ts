@@ -6,6 +6,7 @@ import {
   getTailoredResume,
   tailorResume,
   approveTailoredResume,
+  revertTailoredResume,
 } from "@/lib/tailor/service";
 import { getPdfState, renderPdf } from "@/lib/pdf/service";
 import { runIngestionPipeline } from "@/lib/ingestion/pipeline";
@@ -21,6 +22,7 @@ import { getDefaultProvider } from "@/lib/analysis/service";
 //   bun run agent -- analyze <jobId> [--refresh]
 //   bun run agent -- tailor <jobId> [--refresh]
 //   bun run agent -- approve <jobId>
+//   bun run agent -- revert <jobId>
 //   bun run agent -- pdf <jobId> [--refresh]
 //   bun run agent -- decision <jobId> --status SAVED [--reason "..."]
 //   bun run agent -- ingest
@@ -181,6 +183,12 @@ async function main() {
       return print(command, draft);
     }
 
+    case "revert": {
+      const jobId = idArg();
+      const draft = await revertTailoredResume(jobId);
+      return print(command, draft);
+    }
+
     case "pdf": {
       const jobId = idArg();
       if (!refresh()) {
@@ -266,6 +274,7 @@ async function main() {
           "analyze <id>",
           "tailor <id>",
           "approve <id>",
+          "revert <id>",
           "pdf <id>",
           "decision <id> --status <status>",
           "ingest",

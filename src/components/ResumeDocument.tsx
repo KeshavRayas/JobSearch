@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { skillCategories } from "@/lib/tailor/document";
+import type { DiffSegment, ResumeDiff } from "@/lib/tailor/diff";
 
 export type DraftField = string | boolean | string[];
 
@@ -90,6 +91,39 @@ function EditableText({
   );
 }
 
+function diffParts(segments: DiffSegment[]): {
+  old: string;
+  next: string;
+  changed: boolean;
+  significant: boolean;
+} {
+  const old = segments
+    .filter((segment) => segment.kind !== "add")
+    .map((segment) => segment.text)
+    .join("");
+  const next = segments
+    .filter((segment) => segment.kind !== "del")
+    .map((segment) => segment.text)
+    .join("");
+  const changed = segments.some((segment) => segment.kind !== "same");
+  const changedWords = segments
+    .filter((segment) => segment.kind !== "same")
+    .flatMap((segment) => segment.text.trim().split(/\s+/))
+    .filter((word) => /[A-Za-z0-9]/.test(word));
+  const totalWords = [...old.split(/\s+/), ...next.split(/\s+/)].filter(
+    (word) => /[A-Za-z0-9]/.test(word),
+  ).length;
+  return {
+    old,
+    next,
+    changed,
+    significant:
+      changed &&
+      (changedWords.length >= 3 ||
+        changedWords.length / Math.max(totalWords, 1) >= 0.25),
+  };
+}
+
 function bulletsOf(item: DraftSection["items"][number]): string[] {
   return list(item.fields.bulletPoints ?? item.fields.bullets);
 }
@@ -121,16 +155,22 @@ export function ResumeDocument({
   profile,
   sections,
   editable,
+  mode,
+  diff,
   onChangeSectionTitle,
   onChangeField,
   onChangeBullet,
   onAddBullet,
   onRemoveBullet,
   onChangeSkills,
+  onRestoreSummary,
+  onRestoreBullet,
 }: {
   profile: ResumeProfileView | null;
   sections: DraftSection[];
   editable: boolean;
+  mode?: "edit" | "changes" | "final";
+  diff?: ResumeDiff;
   onChangeSectionTitle: (sectionIndex: number, value: string) => void;
   onChangeField: (
     sectionIndex: number,
@@ -155,7 +195,20 @@ export function ResumeDocument({
     itemIndex: number,
     skills: string[],
   ) => void;
+  onRestoreSummary: (
+    sectionIndex: number,
+    itemIndex: number,
+    value: string,
+  ) => void;
+  onRestoreBullet: (
+    sectionIndex: number,
+    itemIndex: number,
+    bulletIndex: number,
+    value: string,
+  ) => void;
 }) {
+  const isEditing = mode ? mode === "edit" : editable;
+  const showChanges = mode === "changes";
   return (
     <article
       className="resume-paper mx-auto w-full max-w-[760px] bg-white border border-black/[0.12] px-8 sm:px-11 py-9 text-[#171717]"
@@ -177,24 +230,52 @@ export function ResumeDocument({
             <EditableText
               value={section.title}
               onChange={(value) => onChangeSectionTitle(si, value)}
-              editable={editable}
+              editable={isEditing}
               ariaLabel={`Section title ${section.title}`}
               className="text-[11px] font-bold uppercase tracking-[0.1em]"
             />
           </div>
 
           {section.type === "summary" &&
-            section.items.map((item, ii) => (
-              <EditableText
-                key={item.id}
-                value={text(item.fields.content ?? item.fields.summary)}
-                onChange={(value) => onChangeField(si, ii, "content", value)}
-                editable={editable}
-                multiline
-                ariaLabel="Summary"
-                className="block text-[11.5px] leading-[1.5] text-justify whitespace-pre-wrap"
-              />
-            ))}
+            section.items.map((item, ii) => {
+              const itemDiff = diff?.[`${si}:${ii}`];
+              if (showChanges && itemDiff?.summary) {
+                const parts = diffParts(itemDiff.summary);
+                if (parts.significant) {
+                  return (
+                    <div key={item.id} className="space-y-1">
+                      <div className="resume-add block text-[11.5px] leading-[1.5] text-justify whitespace-pre-wrap">
+                        {parts.next}
+                      </div>
+                      <div className="resume-before text-[10px] leading-[1.45] text-justify">
+                        <span className="not-italic font-semibold text-[#8c2f2f]">
+                          Before:{" "}
+                        </span>
+                        <del className="resume-del">{parts.old}</del>{" "}
+                        <button
+                          type="button"
+                          onClick={() => onRestoreSummary(si, ii, parts.old)}
+                          className="resume-restore"
+                        >
+                          Restore base
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+              }
+              return (
+                <EditableText
+                  key={item.id}
+                  value={text(item.fields.content ?? item.fields.summary)}
+                  onChange={(value) => onChangeField(si, ii, "content", value)}
+                  editable={isEditing}
+                  multiline
+                  ariaLabel="Summary"
+                  className="block text-[11.5px] leading-[1.5] text-justify whitespace-pre-wrap"
+                />
+              );
+            })}
 
           {section.type === "experience" && (
             <div className="space-y-3">
@@ -226,7 +307,7 @@ export function ResumeDocument({
                         onChange={(value) =>
                           onChangeField(si, ii, "title", value)
                         }
-                        editable={editable}
+                        editable={isEditing}
                         ariaLabel={`Role ${ii + 1}`}
                         className="text-[11.5px] font-bold leading-snug"
                       />
@@ -241,47 +322,114 @@ export function ResumeDocument({
                         {companyLine}
                       </div>
                     )}
-                    {bulletsOf(item).length > 0 && (
-                      <div className="mt-1 space-y-[1px]">
-                        {bulletsOf(item).map((bullet, bi) => (
-                          <div
-                            key={`${item.id}-b${bi}`}
-                            className="group flex items-start gap-1.5 text-[11.5px] leading-[1.4]"
-                          >
-                            <span className="mt-[1px]">•</span>
-                            <EditableText
-                              value={bullet}
-                              onChange={(value) =>
-                                onChangeBullet(si, ii, bi, value)
-                              }
-                              editable={editable}
-                              multiline
-                              ariaLabel={`Bullet ${bi + 1}`}
-                              className="flex-1 text-justify"
-                            />
-                            {editable && (
-                              <button
-                                type="button"
-                                onClick={() => onRemoveBullet(si, ii, bi)}
-                                aria-label={`Remove bullet ${bi + 1}`}
-                                className="opacity-0 group-hover:opacity-100 text-[11px] text-black/35 hover:text-black transition-opacity"
+                    {(() => {
+                      const bullets = bulletsOf(item);
+                      const itemDiff = diff?.[`${si}:${ii}`];
+                      const removed =
+                        showChanges && itemDiff?.removedBullets
+                          ? itemDiff.removedBullets
+                          : [];
+                      if (bullets.length === 0 && removed.length === 0) {
+                        return null;
+                      }
+                      return (
+                        <div className="mt-1 space-y-[1px]">
+                          {bullets.map((bullet, bi) => {
+                            const segments = itemDiff?.bullets[bi];
+                            return (
+                              <div
+                                key={`${item.id}-b${bi}`}
+                                className="group flex items-start gap-1.5 text-[11.5px] leading-[1.4]"
                               >
-                                ×
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                        {editable && (
-                          <button
-                            type="button"
-                            onClick={() => onAddBullet(si, ii)}
-                            className="text-[10px] text-black/35 hover:text-black"
-                          >
-                            + bullet
-                          </button>
-                        )}
-                      </div>
-                    )}
+                                <span className="mt-[1px]">•</span>
+                                {showChanges && segments ? (
+                                  (() => {
+                                    const parts = diffParts(segments);
+                                    if (!parts.significant) {
+                                      return (
+                                        <span className="flex-1 text-justify">
+                                          {parts.next}
+                                        </span>
+                                      );
+                                    }
+                                    return (
+                                      <div className="flex-1">
+                                        <div className="resume-add text-justify">
+                                          {parts.next}
+                                        </div>
+                                        <div className="resume-before text-justify">
+                                          <span className="not-italic font-semibold text-[#8c2f2f]">
+                                            Before:{" "}
+                                          </span>
+                                          <del className="resume-del">
+                                            {parts.old}
+                                          </del>{" "}
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              onRestoreBullet(
+                                                si,
+                                                ii,
+                                                bi,
+                                                parts.old,
+                                              )
+                                            }
+                                            className="resume-restore"
+                                          >
+                                            Restore base
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  <EditableText
+                                    value={bullet}
+                                    onChange={(value) =>
+                                      onChangeBullet(si, ii, bi, value)
+                                    }
+                                    editable={isEditing}
+                                    multiline
+                                    ariaLabel={`Bullet ${bi + 1}`}
+                                    className="flex-1 text-justify"
+                                  />
+                                )}
+                                {isEditing && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onRemoveBullet(si, ii, bi)}
+                                    aria-label={`Remove bullet ${bi + 1}`}
+                                    className="opacity-0 group-hover:opacity-100 text-[11px] text-black/35 hover:text-black transition-opacity"
+                                  >
+                                    ×
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {removed.map((bullet, index) => (
+                            <div
+                              key={`${item.id}-removed-${index}`}
+                              className="flex items-start gap-1.5 text-[11.5px] leading-[1.4]"
+                            >
+                              <span className="mt-[1px]">−</span>
+                              <del className="resume-del flex-1 text-justify">
+                                {bullet}
+                              </del>
+                            </div>
+                          ))}
+                          {isEditing && (
+                            <button
+                              type="button"
+                              onClick={() => onAddBullet(si, ii)}
+                              className="text-[10px] text-black/35 hover:text-black"
+                            >
+                              + bullet
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -306,7 +454,7 @@ export function ResumeDocument({
                         onChange={(value) =>
                           onChangeField(si, ii, "degree", value)
                         }
-                        editable={editable}
+                        editable={isEditing}
                         ariaLabel="Degree"
                         className="text-[11.5px] font-bold"
                       />
@@ -322,7 +470,7 @@ export function ResumeDocument({
                         onChange={(value) =>
                           onChangeField(si, ii, "school", value)
                         }
-                        editable={editable}
+                        editable={isEditing}
                         ariaLabel="School"
                         className="text-[11.5px]"
                       />
@@ -331,7 +479,7 @@ export function ResumeDocument({
                         onChange={(value) =>
                           onChangeField(si, ii, "location", value)
                         }
-                        editable={editable}
+                        editable={isEditing}
                         ariaLabel="School location"
                         className="text-[10.5px] whitespace-nowrap text-[#333]"
                       />
@@ -354,7 +502,7 @@ export function ResumeDocument({
                         onChange={(value) =>
                           onChangeField(si, ii, "name", value)
                         }
-                        editable={editable}
+                        editable={isEditing}
                         ariaLabel={`Project ${ii + 1}`}
                         className="text-[11.5px] font-bold"
                       />
@@ -364,45 +512,114 @@ export function ResumeDocument({
                         </span>
                       )}
                     </div>
-                    <div className="mt-1 space-y-[1px]">
-                      {bulletsOf(item).map((bullet, bi) => (
-                        <div
-                          key={`${item.id}-b${bi}`}
-                          className="group flex items-start gap-1.5 text-[11.5px] leading-[1.4]"
-                        >
-                          <span className="mt-[1px]">•</span>
-                          <EditableText
-                            value={bullet}
-                            onChange={(value) =>
-                              onChangeBullet(si, ii, bi, value)
-                            }
-                            editable={editable}
-                            multiline
-                            ariaLabel={`Project bullet ${bi + 1}`}
-                            className="flex-1 text-justify"
-                          />
-                          {editable && (
+                    {(() => {
+                      const bullets = bulletsOf(item);
+                      const itemDiff = diff?.[`${si}:${ii}`];
+                      const removed =
+                        showChanges && itemDiff?.removedBullets
+                          ? itemDiff.removedBullets
+                          : [];
+                      if (bullets.length === 0 && removed.length === 0) {
+                        return null;
+                      }
+                      return (
+                        <div className="mt-1 space-y-[1px]">
+                          {bullets.map((bullet, bi) => {
+                            const segments = itemDiff?.bullets[bi];
+                            return (
+                              <div
+                                key={`${item.id}-b${bi}`}
+                                className="group flex items-start gap-1.5 text-[11.5px] leading-[1.4]"
+                              >
+                                <span className="mt-[1px]">•</span>
+                                {showChanges && segments ? (
+                                  (() => {
+                                    const parts = diffParts(segments);
+                                    if (!parts.significant) {
+                                      return (
+                                        <span className="flex-1 text-justify">
+                                          {parts.next}
+                                        </span>
+                                      );
+                                    }
+                                    return (
+                                      <div className="flex-1">
+                                        <div className="resume-add text-justify">
+                                          {parts.next}
+                                        </div>
+                                        <div className="resume-before text-justify">
+                                          <span className="not-italic font-semibold text-[#8c2f2f]">
+                                            Before:{" "}
+                                          </span>
+                                          <del className="resume-del">
+                                            {parts.old}
+                                          </del>{" "}
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              onRestoreBullet(
+                                                si,
+                                                ii,
+                                                bi,
+                                                parts.old,
+                                              )
+                                            }
+                                            className="resume-restore"
+                                          >
+                                            Restore base
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  <EditableText
+                                    value={bullet}
+                                    onChange={(value) =>
+                                      onChangeBullet(si, ii, bi, value)
+                                    }
+                                    editable={isEditing}
+                                    multiline
+                                    ariaLabel={`Project bullet ${bi + 1}`}
+                                    className="flex-1 text-justify"
+                                  />
+                                )}
+                                {isEditing && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onRemoveBullet(si, ii, bi)}
+                                    aria-label={`Remove project bullet ${bi + 1}`}
+                                    className="opacity-0 group-hover:opacity-100 text-[11px] text-black/35 hover:text-black transition-opacity"
+                                  >
+                                    ×
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {removed.map((bullet, index) => (
+                            <div
+                              key={`${item.id}-removed-${index}`}
+                              className="flex items-start gap-1.5 text-[11.5px] leading-[1.4]"
+                            >
+                              <span className="mt-[1px]">−</span>
+                              <del className="resume-del flex-1 text-justify">
+                                {bullet}
+                              </del>
+                            </div>
+                          ))}
+                          {isEditing && (
                             <button
                               type="button"
-                              onClick={() => onRemoveBullet(si, ii, bi)}
-                              aria-label={`Remove project bullet ${bi + 1}`}
-                              className="opacity-0 group-hover:opacity-100 text-[11px] text-black/35 hover:text-black transition-opacity"
+                              onClick={() => onAddBullet(si, ii)}
+                              className="text-[10px] text-black/35 hover:text-black"
                             >
-                              ×
+                              + bullet
                             </button>
                           )}
                         </div>
-                      ))}
-                      {editable && (
-                        <button
-                          type="button"
-                          onClick={() => onAddBullet(si, ii)}
-                          className="text-[10px] text-black/35 hover:text-black"
-                        >
-                          + bullet
-                        </button>
-                      )}
-                    </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -442,7 +659,7 @@ export function ResumeDocument({
                         );
                         onChangeSkills(si, ii, flat);
                       }}
-                      editable={editable}
+                      editable={isEditing}
                       ariaLabel={`${group.category} skills`}
                       className="flex-1"
                     />

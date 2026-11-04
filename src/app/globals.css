@@ -327,3 +327,36 @@ body {
   outline-offset: 2px;
   background-color: #fff;
 }
+
+/* Resume change map — review only, never rendered into the PDF. */
+.resume-add {
+  background: #e9f5ee;
+  color: #1f6b45;
+  border-bottom: 1px solid #a7d8bd;
+  border-radius: 2px;
+  text-decoration: none;
+}
+.resume-del {
+  background: #fbebeb;
+  color: #8c2f2f;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  border-radius: 2px;
+}
+.resume-before {
+  margin-top: 1px;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+.resume-restore {
+  border: 0;
+  background: transparent;
+  color: #8c2f2f;
+  font:
+    500 9px "Inter",
+    sans-serif;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  padding: 0 2px;
+}
