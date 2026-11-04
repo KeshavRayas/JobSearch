@@ -145,6 +145,7 @@ export async function searchJobs(
       companySlug: string;
       companyLogo: string | null;
       companyType: string;
+      decisionStatus: string | null;
     }[]
   >(
     `SELECT COUNT(*) OVER()::bigint as total,
@@ -154,9 +155,11 @@ export async function searchJobs(
             j."postedAt", COALESCE(j."postedAt", j."scrapedAt") as "effectiveDate",
             j.skills,
             c.id as "companyId", c.name as "companyName", c.slug as "companySlug",
-            c.logo as "companyLogo", c."companyType"
+            c.logo as "companyLogo", c."companyType",
+            d.status as "decisionStatus"
      FROM "Job" j
      JOIN "Company" c ON c.id = j."companyId"
+     LEFT JOIN "ApplicationDecision" d ON d."jobId" = j.id
      ${where}
      ORDER BY j."sourceScore" DESC,
               COALESCE(j."postedAt", j."scrapedAt") DESC,
@@ -196,6 +199,8 @@ export async function searchJobs(
     source: r.source as JobSearchResult["source"],
     postedAt: r.effectiveDate,
     daysOld: daysAgo(r.effectiveDate),
+    decisionStatus:
+      (r.decisionStatus as JobSearchResult["decisionStatus"]) ?? null,
     skills: r.skills ?? [],
     company: {
       id: r.companyId,

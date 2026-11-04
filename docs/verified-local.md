@@ -28,7 +28,7 @@ removed 2026-11-04).
 | Lint        | `bun run lint`                    | pass, 0 warnings           |
 | Types       | `tsc --noEmit`                    | pass                       |
 | Format      | `prettier --check .`              | pass                       |
-| Unit        | `bun run test`                    | 198 passed / 15 files      |
+| Unit        | `bun run test`                    | 202 passed / 16 files      |
 | Integration | `bun run test:integration`        | 10 passed / 1 file         |
 | E2E         | `bun run test:e2e`                | 17 passed                  |
 | Build       | `bun run build`                   | pass, all routes           |
@@ -39,6 +39,9 @@ removed 2026-11-04).
 ## Live flow (job `iDyCTPl2oe1TkOYCy0L3E`, 2026-11-04)
 
 ```text
+queue     → card Apply → ApplicationDecision QUEUED, detail opens
+prepare   → one click: analyze 201 in 27.9s, tailor 201 in 2.3 min (Muse)
+document  → populated header, education, experience, 3 projects, 1 skills set
 tailor    → HTTP 201, status DRAFT, 5 sections, 0 warnings
 edit      → PUT /tailor with one changed summary field → 200, DRAFT
 approve   → POST /approve → 200, status APPROVED

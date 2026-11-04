@@ -16,6 +16,7 @@ import {
 } from "@/lib/llm/client";
 import { formatUsage } from "@/lib/llm/byok";
 import { TailorDraftEditor } from "@/components/TailorDraftEditor";
+import type { ResumeProfileView } from "@/components/ResumeDocument";
 
 interface LlmCallMeta {
   usage?: {
@@ -95,6 +96,10 @@ interface TailoredResumeView extends LlmCallMeta {
   cached?: boolean;
 }
 
+function nowMs() {
+  return Date.now();
+}
+
 export function JobDetailPanel({
   jobs,
   selectedId,
@@ -116,6 +121,7 @@ export function JobDetailPanel({
   const [tailored, setTailored] = useState<TailoredResumeView | null>(null);
   const [tailoring, setTailoring] = useState(false);
   const [tailorError, setTailorError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<ResumeProfileView | null>(null);
   const [rendering, setRendering] = useState(false);
 
   const [decision, setDecision] = useState<string | null>(null);
@@ -160,7 +166,7 @@ export function JobDetailPanel({
   const callTick = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function startCallTimer(endpoint: string) {
-    const startedAt = Date.now();
+    const startedAt = nowMs();
     setCallTimer({ endpoint, elapsed: 0 });
     if (callTick.current) clearInterval(callTick.current);
     callTick.current = setInterval(() => {
@@ -217,13 +223,14 @@ export function JobDetailPanel({
       .then((data) => {
         if (cancelled || !data) return;
         setAnalysis(data.analysis ?? null);
+        setProfile(data.profile ?? null);
         if (data.tailored?.sections) {
           setTailored({
             ...data.tailored,
             versionCount: data.versionCount ?? 1,
           });
         }
-        if (data.decision?.status && data.decision.status !== "QUEUED") {
+        if (data.decision?.status) {
           setDecision(data.decision.status);
         }
       })
@@ -298,17 +305,51 @@ export function JobDetailPanel({
     );
   }
 
-  function runTailor(refresh: boolean) {
-    return runJobPost(
-      tailoring,
-      setTailoring,
-      setTailorError,
-      "/tailor",
-      refresh,
-      "Tailoring failed",
-      setTailored,
-      !analysis,
-    );
+  async function prepareResume(refresh: boolean) {
+    if (!selectedId || tailoring) return;
+    setTailoring(true);
+    setTailorError(null);
+    const controller = new AbortController();
+    callControllers.current.set("/tailor", controller);
+    try {
+      if (!analysis) {
+        setAnalyzing(true);
+        startCallTimer("/analyze");
+        const aRes = await fetch(`/api/jobs/${selectedId}/analyze`, {
+          method: "POST",
+          headers: llmHeaders(activeLlm, activeModel),
+          signal: controller.signal,
+        });
+        const aData = await aRes.json();
+        stopCallTimer("/analyze");
+        setAnalyzing(false);
+        if (!aRes.ok) throw new Error(aData.error ?? "Analysis failed");
+        setAnalysis(aData);
+      }
+      startCallTimer("/tailor");
+      const res = await fetch(
+        `/api/jobs/${selectedId}/tailor${refresh ? "?refresh=1" : ""}`,
+        {
+          method: "POST",
+          headers: llmHeaders(activeLlm, activeModel),
+          signal: controller.signal,
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Tailoring failed");
+      setTailored(data);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setTailorError("Cancelled.");
+      } else {
+        setTailorError(err instanceof Error ? err.message : "Resume failed");
+      }
+    } finally {
+      stopCallTimer("/analyze");
+      stopCallTimer("/tailor");
+      setAnalyzing(false);
+      setTailoring(false);
+    }
   }
 
   async function runRender(refresh: boolean) {
@@ -659,7 +700,7 @@ export function JobDetailPanel({
             </div>
 
             {/* Tailored Resume Section */}
-            <div className="p-4 border border-black/10 rounded-[14px] bg-black/[0.03] space-y-3">
+            <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="font-serif-calm text-[22px] flex items-center gap-2">
                   <FileText className="w-4 h-4" />
@@ -680,6 +721,7 @@ export function JobDetailPanel({
                     key={`${tailored.id}-${tailored.status}`}
                     jobId={selectedId}
                     draft={tailored}
+                    profile={profile}
                     onUpdated={(next) =>
                       setTailored(next as TailoredResumeView)
                     }
@@ -691,7 +733,7 @@ export function JobDetailPanel({
 
                   <button
                     type="button"
-                    onClick={() => runTailor(true)}
+                    onClick={() => prepareResume(true)}
                     disabled={!mounted || tailoring}
                     className="text-[12px] text-black/50 underline underline-offset-4 hover:text-black disabled:opacity-50"
                   >
@@ -771,17 +813,19 @@ export function JobDetailPanel({
                   <p className="text-[12px] font-medium text-black/55">
                     {analysis
                       ? "Generate an editable draft from the analysis and your base resume."
-                      : "Analyze the job first — tailoring builds on the analysis."}
+                      : "One click analyzes the job and builds your first draft."}
                   </p>
                   <button
-                    onClick={() => runTailor(false)}
-                    disabled={!mounted || tailoring || !analysis}
+                    onClick={() => prepareResume(false)}
+                    disabled={!mounted || tailoring}
                     className="w-full flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
                   >
                     <FileText className="w-4 h-4" />
                     {tailoring
-                      ? `Tailoring…${timerFor("/tailor")}`
-                      : "Tailor Resume"}
+                      ? `Preparing resume…${timerFor("/analyze") || timerFor("/tailor")}`
+                      : analysis
+                        ? "Tailor Resume"
+                        : "Analyze & Tailor Resume"}
                   </button>
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[12px] font-medium text-black/55">
@@ -824,7 +868,12 @@ export function JobDetailPanel({
           <div className="flex gap-3">
             <button
               onClick={() => setJobDecision("OPENED", true)}
-              disabled={!mounted || deciding}
+              disabled={
+                !mounted ||
+                deciding ||
+                !tailored ||
+                tailored.status !== "APPROVED"
+              }
               className="flex-1 flex items-center justify-center gap-2 bg-[#111] text-white font-medium px-4 py-3 rounded-full text-[13px] transition-all duration-300 disabled:opacity-50"
             >
               Open application
@@ -839,6 +888,13 @@ export function JobDetailPanel({
             </button>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => setJobDecision("QUEUED")}
+              disabled={!mounted || deciding}
+              className="flex-1 text-[13px] font-medium px-3 py-2 rounded-full border border-black/10 hover:bg-black hover:text-white transition-all duration-500 disabled:opacity-50"
+            >
+              Queue
+            </button>
             <button
               onClick={() => setJobDecision("SAVED")}
               disabled={!mounted || deciding}
@@ -862,8 +918,9 @@ export function JobDetailPanel({
             </button>
           </div>
           <p className="text-[12px] font-medium text-black/55">
-            Opening records OPENED only — confirm with I&apos;ve Applied after
-            you submit.
+            {tailored?.status === "APPROVED"
+              ? "Approved resume ready. Opening records OPENED only — confirm with I’ve Applied after you submit."
+              : "Tailor and approve the resume to unlock the company application link."}
           </p>
         </div>
       )}

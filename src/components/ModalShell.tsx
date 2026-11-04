@@ -31,7 +31,7 @@ export function ModalShell({
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-2xl h-[88vh] max-h-[860px] overflow-hidden bg-[#FAFAF7] border border-black/10 rounded-[24px] calm-enter shadow-[0_20px_50px_-20px_rgba(0,0,0,0.18)]"
+        className="relative w-full max-w-5xl h-[92vh] max-h-[960px] overflow-hidden bg-[#FAFAF7] border border-black/10 rounded-[24px] calm-enter shadow-[0_20px_50px_-20px_rgba(0,0,0,0.18)]"
       >
         {children}
       </div>

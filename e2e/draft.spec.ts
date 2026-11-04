@@ -98,8 +98,13 @@ test("draft can be edited, saved, approved, then rendered", async ({
     0,
   );
 
-  const summary = page.getByLabel("content").first();
+  const summary = page.getByRole("textbox", {
+    name: "Summary",
+    exact: true,
+  });
+  await summary.click();
   await summary.fill("Backend engineer focused on Go and Postgres.");
+  await page.keyboard.press("Tab");
   await page.getByRole("button", { name: "Save draft" }).click();
 
   await expect(page.getByRole("button", { name: "Saved" })).toBeVisible();

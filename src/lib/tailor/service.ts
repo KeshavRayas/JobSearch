@@ -9,6 +9,7 @@ import {
 import { collectEvidencePair } from "@/lib/tailor/evidence";
 import { validateTailoredResume } from "@/lib/tailor/validate";
 import { canonicalizeTailored } from "@/lib/tailor/canonical";
+import { enrichTailoredData } from "@/lib/tailor/document";
 import type { ResumeData } from "@/lib/resume.types";
 import { hasResumeContent } from "@/lib/resume.utils";
 import { getDefaultProvider, setDefaultProvider } from "@/lib/analysis/service";
@@ -125,7 +126,15 @@ export async function getTailoredResume(jobId: string) {
     prisma.tailoredResume.count({ where: { jobId } }),
   ]);
   if (!current) return null;
-  const view = draftView(current, versionCount);
+  const parsed = tailoredResumeSchema.safeParse(current.content);
+  if (!parsed.success) return null;
+  const base = await prisma.resume.findUnique({
+    where: { id: current.baseResumeId },
+  });
+  const enriched = base?.content
+    ? enrichTailoredData(parsed.data, base.content as unknown as ResumeData)
+    : parsed.data;
+  const view = draftView({ ...current, content: enriched }, versionCount);
   if (!view) return null;
   return {
     ...view,
@@ -217,8 +226,12 @@ async function persistDraft(
 ): Promise<{ tailored: TailoredDraftView; cached: false }> {
   const canonical = canonicalizeTailored(data);
   copySkillsFromBase(canonical, baseContent);
+  const enriched = enrichTailoredData(
+    canonical as unknown as TailoredResumeData,
+    baseContent,
+  );
   const warnings = validateTailoredResume(
-    { sections: canonical.sections } as TailoredResumeData,
+    enriched,
     evidenceById,
     baseContent,
   ).map((issue) => issue.text);
@@ -245,7 +258,7 @@ async function persistDraft(
         version,
         isCurrent: true,
         baseResumeId,
-        content: canonical as object,
+        content: enriched as object,
         evidenceIds: [...evidenceById.keys()],
         status: "DRAFT",
         warnings,
@@ -283,18 +296,21 @@ export async function saveTailoredDraft(
   let warnings: string[] = [];
   const base = await getBaseResume();
   const baseContent = base?.content as ResumeData | null;
+  let enriched = canonical as TailoredResumeData;
   if (baseContent && hasResumeContent(baseContent)) {
-    const { evidenceById } = collectEvidencePair(baseContent);
-    warnings = validateTailoredResume(
-      canonical as TailoredResumeData,
-      evidenceById,
+    enriched = enrichTailoredData(
+      canonical as unknown as TailoredResumeData,
       baseContent,
-    ).map((issue) => issue.text);
+    );
+    const { evidenceById } = collectEvidencePair(baseContent);
+    warnings = validateTailoredResume(enriched, evidenceById, baseContent).map(
+      (issue) => issue.text,
+    );
   }
   const updated = await prisma.tailoredResume.update({
     where: { id: current.id },
     data: {
-      content: canonical as object,
+      content: enriched as object,
       status: "DRAFT",
       warnings,
       renderStatus: "PENDING",

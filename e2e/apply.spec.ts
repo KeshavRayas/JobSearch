@@ -20,8 +20,8 @@ test("detail overlay opens with correct gates", async ({ page }) => {
   await expect(page.getByText(/Manage keys in Settings/)).toBeVisible();
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: /tailor resume/i }),
-  ).toBeDisabled();
+    page.getByRole("button", { name: /analyze & tailor resume/i }),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Tailored Resume" }),
   ).toBeVisible();

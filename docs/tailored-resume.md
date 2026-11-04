@@ -14,25 +14,28 @@ evidence. `collectEvidence()` flattens items; per-bullet IDs come from the
 ## Flow
 
 ```text
-Select job (needs JobAnalysis, else 422) → [Tailor Resume]
+Queue a job (Apply) → open it
+  → [Analyze & Tailor Resume] (one click; analysis runs first when missing)
   → POST /api/jobs/:id/tailor
   → tailorResume(): base resume + job + analysis → configured provider
   → Zod shape check (+ one repair retry) → canonicalize
-  → provenance checks become warnings, never a hard failure
+  → enrich factual fields from the base resume (company, dates, school,
+    project names/technologies, skills) → provenance warnings, never a hard stop
   → persist TailoredResume version as DRAFT (v1, v2, …; one current)
 
-Edit any field → [Save draft]
+Click any text in the resume document → edit inline → [Save draft]
   → PUT /api/jobs/:id/tailor { sections }
-  → schema-validated, canonicalized, status back to DRAFT
+  → schema-validated, enriched, status back to DRAFT
   → PDF/ATS state cleared because the content changed
 
 [Approve resume]
   → persist current edits → POST /api/jobs/:id/approve
   → status APPROVED
 
-[Render PDF]
-  → POST /api/jobs/:id/pdf (422 unless APPROVED)
-  → render → extract → ATS checks; failures never touch content
+[Open application] (unlocked only after approval)
+  → records OPENED and opens the company page; no autofill
+[I've applied]
+  → records APPLIED explicitly
 ```
 
 `GET /api/jobs/:id/tailor` returns the saved current draft (`cached: true`).
@@ -59,6 +62,19 @@ cleared when the user saves edits.
 
 Skills are facts, not prose: `copySkillsFromBase` overwrites tailored skill lists
 with the cited base item’s exact strings. The model never edits skills.
+
+## Resume document (editable)
+
+The draft is rendered as the document the user will send, not as a form:
+centered name/contact header from the profile, uppercase section rules, serif
+body, hanging bullets, categorized skills. `ResumeDocument` makes each visible
+field a click-to-edit `contenteditable` element; the generic item fields remain
+the save/PDF source of truth.
+
+`enrichTailoredData` fills facts the model often omits: company, dates, school
+location, GPA, project names/technologies, and the exact skills list. Project
+titles are recovered from the cited base-resume bullets, so no project names are
+hardcoded.
 
 ## PDF + ATS checks (no model calls)
 

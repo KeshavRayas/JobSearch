@@ -76,13 +76,13 @@ The full contract, recipes, and failure playbook are in
 ## Daily loop
 
 ```text
-Discover → open a job → Analyze → Tailor draft → Edit → Approve → PDF → Open application → I've applied → Tracker
+Discover → Apply (queue) → Analyze & Tailor → edit the resume document → Approve → Open application → I've applied → Tracker
 ```
 
 Every LLM step is opt-in and validates its JSON with Zod before persisting.
-Tailoring produces an editable draft; only your explicit approval unlocks PDF
-rendering. No LLM flow mutates `JobMatch.score`. Deterministic matching and the
-LLM verdict sit side by side.
+Tailoring produces an editable resume document; only your explicit approval
+unlocks PDF rendering and the company application link. No LLM flow mutates
+`JobMatch.score`. Deterministic matching and the LLM verdict sit side by side.
 
 ## LLM providers
 
@@ -150,7 +150,7 @@ not deployed.
 
 ```text
 src/app/                 routes (discover, job detail, tracker, resumes, settings, ops, api)
-src/components/          UI (Calm Focus design)
+src/components/          UI (Calm Focus design + resume document)
 src/lib/sources/         one adapter per job board
 src/lib/ingestion/       normalize → validate → dedupe → upsert
 src/lib/matching/        deterministic scoring + nightly digest
@@ -167,12 +167,12 @@ e2e/                     Playwright specs
 
 ## Tests
 
-- `bun run test` — 15 files, pure unit tests, no DB, ~5s.
+- `bun run test` — 16 files, pure unit tests, no DB, ~4s.
 - `bun run test:integration` — DB-backed service tests; writes and deletes its
   own rows. Uses longer timeouts because Neon is remote.
 - `bun run test:e2e` — 17 Playwright tests against a dev server and the same
   database. Specs are serial by design and share fixtures. The draft spec mocks
-  provider calls; it proves edit → save → approve → PDF gating.
+  provider calls; it proves click-to-edit → save → approve → PDF gating.
 
 Current verified state (commands, counts, live flow): see
 [`docs/verified-local.md`](./docs/verified-local.md).

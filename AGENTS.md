@@ -19,7 +19,7 @@ minimal text.
 # Job Search — agent guide
 
 A single-user, local-first job application system. It ingests postings, ranks
-them, tailors an editable resume draft with evidence, renders an ATS-checked
+them, tailors an editable resume document with evidence, renders an ATS-checked
 PDF after approval, and gets you to the apply page. There is no auth layer;
 never expose it publicly.
 
@@ -161,9 +161,9 @@ sources → RawJob (Zod) → ingestion pipeline → Job (+ searchVector)
                                      │
 Profile, Resume ─────────────────────┼──→ matcher → JobMatch / NightlyRun / digest
                                      │
-Job → Analyze → JobAnalysis
+Job → Queue (Apply) → Analyze → JobAnalysis
     → Tailor  → TailoredResume (DRAFT, evidence IDs, warnings)
-    → Edit    → TailoredResume (still DRAFT)
+    → Document→ click-to-edit resume paper (ResumeDocument)
     → Approve → TailoredResume (APPROVED)
     → PDF     → storage/pdfs/... + ATS result (only APPROVED)
     → Decision → tracker

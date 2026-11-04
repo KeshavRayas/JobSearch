@@ -2,7 +2,9 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { canonicalizeTailored } from "@/lib/tailor/canonical";
+import { enrichTailoredData } from "@/lib/tailor/document";
 import { tailoredResumeSchema } from "@/lib/tailor/contract";
+import type { ResumeData } from "@/lib/resume.types";
 import { renderLatex } from "@/lib/pdf/latex";
 import { renderTypst } from "@/lib/pdf/typst";
 import { compileLatex, compileTypst, RenderError } from "@/lib/pdf/compile";
@@ -64,7 +66,14 @@ export async function renderPdf(jobId: string): Promise<{
     await markFailed(jobId, "stored tailored content is not valid");
     throw new RenderError("stored tailored content failed schema check", "");
   }
-  const canonical = canonicalizeTailored(parsed.data);
+  const base = await prisma.resume.findUnique({
+    where: { id: tailored.baseResumeId },
+    select: { content: true },
+  });
+  const enriched = base?.content
+    ? enrichTailoredData(parsed.data, base.content as unknown as ResumeData)
+    : parsed.data;
+  const canonical = canonicalizeTailored(enriched);
   if (canonical.sections.length === 0) {
     await markFailed(jobId, "no sections to render");
     throw new RenderError("no sections to render", "");
