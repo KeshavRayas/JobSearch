@@ -1,12 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-export type NavPage = "discover" | "tracker" | "resumes" | "settings";
+export type NavPage = "discover" | "tracker" | "resumes" | "ops" | "settings";
 
 const LINKS: { page: NavPage; href: string; label: string }[] = [
   { page: "discover", href: "/", label: "Discover" },
   { page: "tracker", href: "/tracker", label: "Tracker" },
   { page: "resumes", href: "/resumes", label: "Resumes" },
+  { page: "ops", href: "/ops", label: "Ops" },
   { page: "settings", href: "/settings", label: "Settings" },
 ];
 
@@ -19,7 +20,7 @@ export function SiteNav({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       {LINKS.filter((l) => l.page !== current).map((l) => (
         <Link key={l.page} href={l.href} className="calm-pill">
           {l.label}
