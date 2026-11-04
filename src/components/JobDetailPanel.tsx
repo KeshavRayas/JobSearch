@@ -7,6 +7,7 @@ import type { JobSearchResult } from "@/lib/types";
 import { formatDaysAgo, formatSalary, enumLabel } from "@/lib/utils";
 import {
   activeConnection,
+  activeModelFor,
   loadLlmStore,
   saveLlmStore,
   subscribeLlmStore,
@@ -210,6 +211,7 @@ export function JobDetailPanel({
   const [llmStore, setLlmStore] = useState<LlmStore>({
     connections: [],
     activeId: null,
+    activeModel: null,
   });
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is client-only; this syncs the store after hydration
@@ -217,6 +219,7 @@ export function JobDetailPanel({
     return subscribeLlmStore(() => setLlmStore(loadLlmStore()));
   }, []);
   const activeLlm = activeConnection(llmStore);
+  const activeModel = activeModelFor(llmStore);
 
   // ─── Long-call timer + cancel (Phase 5A) ─────────────────────────────────
   // One in-flight model call at a time in practice; tracked by endpoint so
@@ -331,7 +334,7 @@ export function JobDetailPanel({
         `/api/jobs/${selectedId}${endpoint}${refresh ? "?refresh=1" : ""}`,
         {
           method: "POST",
-          headers: llmHeaders(activeLlm),
+          headers: llmHeaders(activeLlm, activeModel),
           signal: controller.signal,
         },
       );
@@ -397,7 +400,7 @@ export function JobDetailPanel({
     try {
       const res = await fetch(`/api/jobs/${selectedId}/validate`, {
         method: "POST",
-        headers: llmHeaders(activeLlm),
+        headers: llmHeaders(activeLlm, activeModel),
         signal: controller.signal,
       });
       const data = await res.json();
@@ -724,28 +727,42 @@ export function JobDetailPanel({
                 </label>
                 <select
                   id="job-ai-model"
-                  value={llmStore.activeId ?? ""}
+                  value={
+                    activeLlm && activeModel
+                      ? `${activeLlm.id}::${activeModel}`
+                      : ""
+                  }
                   onChange={(e) => {
-                    const next = {
-                      ...llmStore,
-                      activeId: e.target.value || null,
-                    };
+                    const [connectionId, ...rest] = e.target.value.split("::");
+                    const model = rest.join("::");
+                    const next = connectionId
+                      ? {
+                          ...llmStore,
+                          activeId: connectionId,
+                          activeModel: model,
+                        }
+                      : { ...llmStore, activeId: null, activeModel: null };
                     saveLlmStore(next);
                     setLlmStore(next);
                   }}
                   className="max-w-[62%] bg-white border border-black/10 rounded-[12px] px-3 py-2 text-[13px] outline-none focus:border-black/30"
                 >
                   <option value="">Server default</option>
-                  {llmStore.connections.map((connection) => (
-                    <option key={connection.id} value={connection.id}>
-                      {connection.label} · {connection.model}
-                    </option>
-                  ))}
+                  {llmStore.connections.map((connection) =>
+                    (connection.models ?? []).map((model) => (
+                      <option
+                        key={`${connection.id}::${model}`}
+                        value={`${connection.id}::${model}`}
+                      >
+                        {connection.label} · {model}
+                      </option>
+                    )),
+                  )}
                 </select>
               </div>
               <p className="text-[11px] text-black/45">
-                {activeLlm
-                  ? `Using ${activeLlm.label} · ${activeLlm.model}.`
+                {activeLlm && activeModel
+                  ? `Using ${activeLlm.label} · ${activeModel}.`
                   : "Using the server default provider."}{" "}
                 <Link
                   href="/settings"
@@ -769,8 +786,8 @@ export function JobDetailPanel({
               </button>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[12px] font-medium text-black/55">
-                  {activeLlm
-                    ? `Using ${activeLlm.label} · ${activeLlm.model}`
+                  {activeLlm && activeModel
+                    ? `Using ${activeLlm.label} · ${activeModel}`
                     : "Using the server default provider"}
                   {" — one call per job, result saved and reused."}
                 </p>

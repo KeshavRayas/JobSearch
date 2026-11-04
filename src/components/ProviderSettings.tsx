@@ -11,8 +11,8 @@ import {
 } from "@/lib/llm/client";
 
 // ─── AI providers (Settings) ─────────────────────────────────────────────────
-// The only place keys are entered. The job modal chooses among these
-// connections; it never renders a key field.
+// Add a key once. Saving discovers the provider's models, so the user never
+// types a model here. The job panel lists the discovered models.
 
 const inputClass =
   "w-full bg-white border border-black/10 rounded-[14px] px-4 py-2.5 text-[14px] outline-none transition-colors duration-500 focus:border-black/30 placeholder:text-black/35";
@@ -25,7 +25,6 @@ type Draft = {
   presetId: string;
   label: string;
   baseUrl: string;
-  model: string;
   key: string;
   api?: "chat" | "responses";
 };
@@ -37,7 +36,6 @@ function draftFrom(connection?: LlmConnection): Draft {
       presetId: connection.presetId,
       label: connection.label,
       baseUrl: connection.baseUrl,
-      model: connection.model,
       key: "",
       api: connection.api,
     };
@@ -46,7 +44,6 @@ function draftFrom(connection?: LlmConnection): Draft {
     presetId: LLM_PRESETS[0].id,
     label: LLM_PRESETS[0].label,
     baseUrl: LLM_PRESETS[0].baseUrl,
-    model: "",
     key: "",
     api: LLM_PRESETS[0].api,
   };
@@ -88,7 +85,6 @@ export function ProviderSettings() {
 
   async function testAndSave() {
     if (!draft) return;
-    const model = draft.model.trim();
     const baseUrl = draft.baseUrl.trim();
     const label = draft.label.trim() || "Custom";
     const existing = draft.id
@@ -96,39 +92,54 @@ export function ProviderSettings() {
       : undefined;
     const key = draft.key.trim() || existing?.key || "";
 
-    if (!model) return setError("Model is required.");
     if (!key) return setError("API key is required.");
+    if (!baseUrl) return setError("Base URL is required.");
 
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/llm/test", {
+      const res = await fetch("/api/llm/models", {
         method: "POST",
         headers: {
           "x-llm-key": key,
-          "x-llm-model": model,
+          "x-llm-base-url": baseUrl,
           "x-llm-label": label,
-          ...(baseUrl ? { "x-llm-base-url": baseUrl } : {}),
+          ...(draft.api ? { "x-llm-api": draft.api } : {}),
         },
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error ?? "Key check failed");
+      if (!res.ok) {
+        throw new Error(data?.detail ?? data?.error ?? "Key check failed");
+      }
+      const models = Array.isArray(data?.models)
+        ? (data.models as string[])
+        : [];
+      if (models.length === 0) throw new Error("No models returned.");
 
       const connection: LlmConnection = {
         id: draft.id ?? crypto.randomUUID(),
         presetId: draft.presetId,
         label,
         baseUrl,
-        model,
         key,
         api: draft.api,
+        models,
       };
       const connections = draft.id
-        ? store!.connections.map((c) => (c.id === draft.id ? connection : c))
+        ? store!.connections.map((c) =>
+            c.id === draft.id ? connection : c,
+          )
         : [...store!.connections, connection];
+      const wasActive = store!.activeId === connection.id || !store!.activeId;
+      const currentModel = store!.activeModel;
       apply({
         connections,
         activeId: store!.activeId ?? connection.id,
+        activeModel: wasActive
+          ? models.includes(currentModel ?? "")
+            ? currentModel
+            : models[0]
+          : store!.activeModel,
       });
       setDraft(null);
     } catch (err) {
@@ -140,10 +151,17 @@ export function ProviderSettings() {
 
   function remove(id: string) {
     const connections = store!.connections.filter((c) => c.id !== id);
+    const nextActive =
+      store!.activeId === id
+        ? (connections[0]?.id ?? null)
+        : store!.activeId;
     apply({
       connections,
-      activeId:
-        store!.activeId === id ? (connections[0]?.id ?? null) : store!.activeId,
+      activeId: nextActive,
+      activeModel:
+        store!.activeId === id
+          ? (connections[0]?.models?.[0] ?? null)
+          : store!.activeModel,
     });
   }
 
@@ -151,9 +169,9 @@ export function ProviderSettings() {
     <section className="calm-card p-6 sm:p-8">
       <h2 className="font-serif-calm text-[24px]">AI providers</h2>
       <p className="mt-1 text-[13px] text-black/55">
-        Add keys once here. The job panel only picks which model to use. Keys
-        stay in this browser and travel per request — never stored or logged on
-        the server.
+        Add a key once here. Saving fetches the provider&apos;s model list; the
+        job panel lets you choose from those models. Keys stay in this browser
+        and travel per request — never stored or logged on the server.
       </p>
 
       <div className="mt-5 space-y-2">
@@ -161,14 +179,16 @@ export function ProviderSettings() {
           <span>
             <span className="font-medium">Server default</span>
             <span className="block text-[12px] text-black/45">
-              OpenCode CLI or the operator&apos;s cloud provider
+              Operator-configured provider
             </span>
           </span>
           <input
             type="radio"
             name="active-provider"
             checked={store.activeId === null}
-            onChange={() => apply({ ...store, activeId: null })}
+            onChange={() =>
+              apply({ ...store, activeId: null, activeModel: null })
+            }
             className="control-radio"
           />
         </label>
@@ -183,7 +203,13 @@ export function ProviderSettings() {
                 type="radio"
                 name="active-provider"
                 checked={store.activeId === connection.id}
-                onChange={() => apply({ ...store, activeId: connection.id })}
+                onChange={() =>
+                  apply({
+                    ...store,
+                    activeId: connection.id,
+                    activeModel: connection.models?.[0] ?? null,
+                  })
+                }
                 className="control-radio"
               />
               <span className="min-w-0">
@@ -191,7 +217,7 @@ export function ProviderSettings() {
                   {connection.label}
                 </span>
                 <span className="text-[12px] text-black/45 truncate block">
-                  {connection.model} · {maskKey(connection.key)}
+                  {connection.models?.length ?? 0} models · {maskKey(connection.key)}
                 </span>
               </span>
             </label>
@@ -264,22 +290,6 @@ export function ProviderSettings() {
             </div>
 
             <div>
-              <label className={labelClass} htmlFor="provider-model">
-                Model
-              </label>
-              <input
-                id="provider-model"
-                className={`${inputClass} mt-2`}
-                value={draft.model}
-                onChange={(e) => setDraft({ ...draft, model: e.target.value })}
-                placeholder={
-                  LLM_PRESETS.find((p) => p.id === draft.presetId)
-                    ?.modelPlaceholder ?? "model id"
-                }
-              />
-            </div>
-
-            <div>
               <label className={labelClass} htmlFor="provider-label">
                 Label
               </label>
@@ -287,24 +297,26 @@ export function ProviderSettings() {
                 id="provider-label"
                 className={`${inputClass} mt-2`}
                 value={draft.label}
-                onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className={labelClass} htmlFor="provider-base-url">
-                Base URL
-              </label>
-              <input
-                id="provider-base-url"
-                className={`${inputClass} mt-2`}
-                value={draft.baseUrl}
                 onChange={(e) =>
-                  setDraft({ ...draft, baseUrl: e.target.value })
+                  setDraft({ ...draft, label: e.target.value })
                 }
-                placeholder="https://…/v1"
               />
             </div>
+          </div>
+
+          <div>
+            <label className={labelClass} htmlFor="provider-base-url">
+              Base URL
+            </label>
+            <input
+              id="provider-base-url"
+              className={`${inputClass} mt-2`}
+              value={draft.baseUrl}
+              onChange={(e) =>
+                setDraft({ ...draft, baseUrl: e.target.value })
+              }
+              placeholder="https://…/v1"
+            />
           </div>
 
           <div>
@@ -334,8 +346,11 @@ export function ProviderSettings() {
             disabled={busy}
             className="rounded-full bg-[#111] px-5 py-2.5 text-[13px] font-medium text-white transition-opacity duration-300 hover:opacity-85 disabled:opacity-50"
           >
-            {busy ? "Checking…" : "Test & save"}
+            {busy ? "Finding models…" : "Save & find models"}
           </button>
+          <p className="text-[11px] text-black/45">
+            The model list comes from the provider. No model id is typed here.
+          </p>
         </div>
       ) : (
         <button
@@ -349,7 +364,7 @@ export function ProviderSettings() {
 
       {saved && !draft && (
         <p className="mt-3 text-[13px] text-black/55" role="status">
-          Provider settings saved. Choose it in the job panel.
+          Provider saved. Pick one of its models in the job panel.
         </p>
       )}
     </section>
