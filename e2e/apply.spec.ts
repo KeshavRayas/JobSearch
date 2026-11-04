@@ -23,8 +23,11 @@ test("detail overlay opens with correct gates", async ({ page }) => {
     page.getByRole("button", { name: /tailor resume/i }),
   ).toBeDisabled();
   await expect(
+    page.getByRole("heading", { name: "Tailored Resume" }),
+  ).toBeVisible();
+  await expect(
     page.getByRole("button", { name: /write cover letter/i }),
-  ).toBeDisabled();
+  ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "OPEN APPLICATION" }),
   ).toBeVisible();

@@ -7,47 +7,52 @@ commands; do not trust this file over current output.
 
 ## Environment
 
-- Database: Neon Postgres, 13 migrations applied.
-- Provider: OpenCode CLI, pinned `OPENCODE_MODEL=google/gemini-3.5-flash`.
+- Database: Neon Postgres, 15 migrations applied.
+- Provider: OpenCode Go **Responses API**, model `muse-spark-1.3-contributor`
+  (configured in `.env`; key never committed).
 - Jobs: 45 visible (Greenhouse 20, Ashby 23, Lever 1, Remotive 1).
+- The local OpenCode CLI is currently broken on this machine
+  (`no such column: project_id`); the app bypasses it via the cloud provider.
 
 ## Scope
 
-This is an end-to-end **application** platform: discover/rank jobs, analyze and
-tailor the resume, render the PDF, write a cover letter, and open the company
-apply page. Interview prep was removed from the product on 2026-11-04.
+Discover/rank jobs, analyze, tailor an **editable draft**, approve it, render an
+ATS-checked PDF, then open the company apply page and mark the application as
+submitted. Cover letters and interview prep are out of scope (cover letters
+removed 2026-11-04).
 
 ## Gates
 
-| Gate        | Command                             | Result                     |
-| ----------- | ----------------------------------- | -------------------------- |
-| Lint        | `bun run lint`                      | pass                       |
-| Types       | `tsc --noEmit`                      | pass                       |
-| Format      | `prettier --check .`                | pass                       |
-| Unit        | `bun run test`                      | 219 passed / 17 files      |
-| Integration | `bun run test:integration`          | 17 passed / 2 files        |
-| E2E         | `bun run test:e2e`                  | 16 passed                  |
-| Build       | `bun run build`                     | pass, all routes           |
-| Muse Spark  | `smoke:flow --refresh` (Responses)  | full loop, 255s            |
-| Prod health | `bun run start` + `GET /api/health` | 200, `ok:true`             |
-| Nightly     | `bun run agent -- nightly`          | 45 candidates, 25 matched  |
-| Setup       | `bun run setup`                     | migrations + seed + report |
-| Audit       | `bun run audit`                     | `ok:true`, 45/45 visible   |
+| Gate        | Command                           | Result                     |
+| ----------- | --------------------------------- | -------------------------- |
+| Lint        | `bun run lint`                    | pass, 0 warnings           |
+| Types       | `tsc --noEmit`                    | pass                       |
+| Format      | `prettier --check .`              | pass                       |
+| Unit        | `bun run test`                    | 198 passed / 15 files      |
+| Integration | `bun run test:integration`        | 10 passed / 1 file         |
+| E2E         | `bun run test:e2e`                | 17 passed                  |
+| Build       | `bun run build`                   | pass, all routes           |
+| Muse Spark  | live tailor + PDF (Responses API) | full loop, ~2.2 min tailor |
+| Draft gate  | `POST /api/jobs/:id/pdf` on DRAFT | 422, explicit message      |
+| Audit       | `bun run audit`                   | 45/45 visible              |
 
-## Live flow (fresh job `o1gMoCevGRZR5d0EMyXUE`)
+## Live flow (job `iDyCTPl2oe1TkOYCy0L3E`, 2026-11-04)
 
 ```text
-analyze   → JobAnalysis persisted
-tailor    → version 1, STRUCTURAL_VALID
-validate  → SEMANTIC_VALID, issues: []
-pdf       → SUCCESS, storage/pdfs/o1gMoCevGRZR5d0EMyXUE_v1.pdf
-            ATS: all sections found
-cover     → persisted, evidence ids resolve
-download  → GET /api/jobs/:id/pdf/download → 200 application/pdf (32,590 bytes)
+tailor    → HTTP 201, status DRAFT, 5 sections, 0 warnings
+edit      → PUT /tailor with one changed summary field → 200, DRAFT
+approve   → POST /approve → 200, status APPROVED
+pdf       → HTTP 201, renderStatus SUCCESS, atsStatus CHECKED
+            storage/pdfs/iDyCTPl2oe1TkOYCy0L3E_v1.pdf
+            keyword coverage 17.65%
+reopen    → PUT /tailor → status DRAFT again
+pdf gate  → 422 {"error":"refusing to render: status is DRAFT, approve the
+            resume draft first"}
+re-approve→ 200
 ```
 
-Total flow time with the CLI provider: 164.9s. Reproduce with
-`bun run smoke:flow`.
+The edited text survived save and approval byte-for-byte. The PDF was rendered
+only after approval.
 
 ## Muse Spark 1.3 Contributor (2026-11-04)
 
@@ -56,38 +61,29 @@ Verified through OpenCode Go's **Responses API**, not chat completions:
 - endpoint `https://opencode.ai/inference/go/openai/v1/responses`
 - model `muse-spark-1.3-contributor`
 - required headers: bearer key + `x-opencode-session`
-- full flow: analyze → tailor → SEMANTIC_VALID → PDF
-  `storage/pdfs/o1gMoCevGRZR5d0EMyXUE_v2.pdf` → cover, 255s (interview prep
-  was part of this run but has since been removed from the product).
-- the Settings preset now stores `api: "responses"`; the BYOK test route
-  returned 200 with `source: user` for this exact configuration.
-- model discovery: `POST /api/llm/models` returned **28 models** for OpenCode
-  Go, including `muse-spark-1.3-contributor`. Settings shows the count; the job
-  modal lists the actual models (no manual model id).
+- tailor call usage: prompt 2,343 tokens, completion 11,431 tokens
+- provider returned **28 discoverable models**; `muse-spark-1.3-contributor`
+  appears in Settings and the job modal lists the actual model names.
 
-The previous verification job (`VOJ3381CG_ApHYoXMMFUX`) was removed by the
-nightly stale-job cleanup, which correctly cascaded its tailored resume, PDF
-row, cover letter, and other artifacts. That is expected: stale jobs do not keep
-artifacts.
+## Retired validation path
 
-Both failures found during this pass are fixed:
-
-1. `validateTailoredResume` never received the base resume, so skill
-   reordering was rejected as `TEXT_MISMATCH`.
-2. The tailoring prompt allowed an item to borrow facts from evidence it did
-   not cite, so semantic validation correctly rejected a summary that added
-   PyTorch/TensorFlow without citing the skills evidence. The prompt now
-   requires citing every evidence item used.
+The previous strict LLM semantic validator (`SEMANTIC_VALID` /
+`SEMANTIC_INVALID`) was removed with the draft pivot. It produced false failures
+such as `contact_main marked UNCHANGED but text differs from rs_1_...` on
+editable, legitimate resume text. Provenance checks now surface as draft
+warnings; the user decides what to approve. `src/lib/tailor/semantic.ts` and its
+test were deleted.
 
 ## Agent surface
 
 ```bash
 bun run agent -- status
 bun run agent -- jobs list --limit 5
+bun run agent -- analyze <jobId>
 bun run agent -- tailor <jobId>
-bun run agent -- validate <jobId>
+bun run agent -- approve <jobId>
 bun run agent -- pdf <jobId>
-bun run agent -- cover <jobId>
+bun run agent -- decision <jobId> --status APPLIED
 ```
 
 JSON shape `{ ok, command, data }`; exit codes 0/2/3/4/5.

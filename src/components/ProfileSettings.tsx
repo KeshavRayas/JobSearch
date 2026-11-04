@@ -316,8 +316,7 @@ export function ProfileSettings({
       <section className="calm-card p-6 sm:p-8">
         <h2 className="font-serif-calm text-[24px]">Base resume</h2>
         <p className="mt-1 text-[13px] text-black/55">
-          Tailoring and cover letters cite this resume as their evidence set.
-          evidence set.
+          Tailoring cites this resume as its evidence set. evidence set.
         </p>
         <div className="mt-5">
           <Field id={`${idPrefix}-base-resume`} label="Pinned resume">

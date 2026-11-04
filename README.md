@@ -1,9 +1,9 @@
 # Job Search
 
 A local-first end-to-end job application platform. It ingests postings from
-seven sources, ranks them, tailors a resume with evidence, renders an
-ATS-checked PDF, writes a cover letter, and sends you to the company's apply
-page. No accounts, no multi-tenancy.
+seven sources, ranks them, tailors an editable resume draft, renders an
+ATS-checked PDF once you approve it, and opens the company's apply page so you
+can mark the application as submitted. No accounts, no multi-tenancy.
 
 ## Stack
 
@@ -44,7 +44,7 @@ health check is `/api/health`.
 1. **Settings** → fill in your name, contact details, skills, locations,
    salary floor, and work modes. This is what resumes, PDFs, and matching read.
 2. **Resumes** → upload or create a base resume. Structured content is the
-   evidence set that tailoring and cover letters must cite.
+   evidence set that tailoring cites.
 3. **Discover** → press Refresh to run ingestion, or import a single job by URL.
 4. **Nightly** → `bun run ingest` refreshes sources; the nightly matcher is
    triggered by `GET /api/cron/nightly` (see Scheduling).
@@ -61,9 +61,8 @@ bun run agent -- status
 bun run agent -- jobs list --limit 10
 bun run agent -- analyze <jobId>
 bun run agent -- tailor <jobId>
-bun run agent -- validate <jobId>
+bun run agent -- approve <jobId>
 bun run agent -- pdf <jobId>
-bun run agent -- cover <jobId>
 bun run agent -- decision <jobId> --status APPLIED
 bun run agent -- ingest
 bun run agent -- nightly
@@ -77,12 +76,13 @@ The full contract, recipes, and failure playbook are in
 ## Daily loop
 
 ```text
-Discover → open a job → Analyze → Tailor → Check evidence → PDF → Cover letter → Open application → Tracker
+Discover → open a job → Analyze → Tailor draft → Edit → Approve → PDF → Open application → I've applied → Tracker
 ```
 
-Every LLM step is opt-in, validates its JSON with Zod, persists only validated
-output, and never mutates `JobMatch.score`. Deterministic matching and the LLM
-verdict sit side by side.
+Every LLM step is opt-in and validates its JSON with Zod before persisting.
+Tailoring produces an editable draft; only your explicit approval unlocks PDF
+rendering. No LLM flow mutates `JobMatch.score`. Deterministic matching and the
+LLM verdict sit side by side.
 
 ## LLM providers
 
@@ -135,7 +135,7 @@ not deployed.
 | `bun run setup`            | Env check + migrations + seed (idempotent)    |
 | `bun run audit`            | JSON install health (visibility, base resume) |
 | `bun run smoke:llm`        | One provider call; verifies auth + JSON       |
-| `bun run smoke:flow`       | Full analyze→cover flow on one job            |
+| `bun run smoke:flow`       | Full analyze→approve→PDF flow on one job      |
 | `bun run agent -- <cmd>`   | Agent CLI (see `AGENTS.md`)                   |
 | `bun run db:migrate`       | Apply Prisma migrations                       |
 | `bun run db:status`        | Migration status                              |
@@ -155,8 +155,7 @@ src/lib/sources/         one adapter per job board
 src/lib/ingestion/       normalize → validate → dedupe → upsert
 src/lib/matching/        deterministic scoring + nightly digest
 src/lib/analysis/        job analysis service
-src/lib/tailor/          tailoring, provenance, semantic validation
-src/lib/cover/           cover letters
+src/lib/tailor/          tailoring, provenance warnings, draft + approval
 src/lib/pdf/             Typst/LaTeX render + ATS checks
 src/lib/llm/             provider abstraction, BYOK, retries
 src/lib/repositories/    all Prisma reads for pages
@@ -168,11 +167,12 @@ e2e/                     Playwright specs
 
 ## Tests
 
-- `bun run test` — 17 files, pure unit tests, no DB, ~5s.
+- `bun run test` — 15 files, pure unit tests, no DB, ~5s.
 - `bun run test:integration` — DB-backed service tests; writes and deletes its
   own rows. Uses longer timeouts because Neon is remote.
-- `bun run test:e2e` — Playwright against a dev server and the same database.
-  Specs are serial by design and share fixtures.
+- `bun run test:e2e` — 17 Playwright tests against a dev server and the same
+  database. Specs are serial by design and share fixtures. The draft spec mocks
+  provider calls; it proves edit → save → approve → PDF gating.
 
 Current verified state (commands, counts, live flow): see
 [`docs/verified-local.md`](./docs/verified-local.md).
@@ -188,8 +188,8 @@ visual. Single centered column, hairlines only, Instrument Serif + Inter,
 
 - Opening a job is client-side: no server round trip, no list refetch. Measured
   ~40ms to open the modal after hydration.
-- The detail panel loads all persisted artifacts from one endpoint
-  (`GET /api/jobs/:id/state`) instead of five.
+- The detail panel loads analysis, the current draft, and the decision from one
+  endpoint (`GET /api/jobs/:id/state`) instead of separate calls.
 - Job searches are cached for 15s under the `jobs` tag and revalidated on
   ingestion; warm homepage responses are ~0.4s locally.
 - The list count is returned by the same SQL query via `COUNT(*) OVER()`.

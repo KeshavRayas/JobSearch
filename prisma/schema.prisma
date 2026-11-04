@@ -110,7 +110,6 @@ model Job {
   analysis JobAnalysis?
   tailoredResumes TailoredResume[]
   decision ApplicationDecision?
-  coverLetter CoverLetter?
 
   @@unique([externalId, source])
   @@index([source])
@@ -278,9 +277,8 @@ model TailoredResume {
   baseResumeId String
   content Json
   evidenceIds String[]
-  validationStatus TailorValidationStatus @default(STRUCTURAL_VALID)
-  validationResult Json?
-  validatedAt DateTime?
+  status TailorStatus @default(DRAFT)
+  warnings String[] @default([])
   renderStatus RenderStatus @default(PENDING)
   renderedAt DateTime?
   pdfPath String?
@@ -306,20 +304,7 @@ enum AtsStatus {
   CHECKED
 }
 
-enum TailorValidationStatus {
-  STRUCTURAL_VALID
-  SEMANTIC_VALID
-  SEMANTIC_INVALID
-}
-
-model CoverLetter {
-  id String @id @default(cuid())
-  jobId String @unique
-  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  baseResumeId String
-  content Json
-  evidenceIds String[]
-  rawJson Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum TailorStatus {
+  DRAFT
+  APPROVED
 }

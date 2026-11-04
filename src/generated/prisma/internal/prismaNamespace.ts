@@ -395,8 +395,7 @@ export const ModelName = {
   JobMatch: 'JobMatch',
   ApplicationDecision: 'ApplicationDecision',
   JobAnalysis: 'JobAnalysis',
-  TailoredResume: 'TailoredResume',
-  CoverLetter: 'CoverLetter'
+  TailoredResume: 'TailoredResume'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -412,7 +411,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "company" | "job" | "searchEvent" | "sourceSync" | "jobIngestionLog" | "resume" | "profile" | "nightlyRun" | "jobMatch" | "applicationDecision" | "jobAnalysis" | "tailoredResume" | "coverLetter"
+    modelProps: "company" | "job" | "searchEvent" | "sourceSync" | "jobIngestionLog" | "resume" | "profile" | "nightlyRun" | "jobMatch" | "applicationDecision" | "jobAnalysis" | "tailoredResume"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1304,80 +1303,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    CoverLetter: {
-      payload: Prisma.$CoverLetterPayload<ExtArgs>
-      fields: Prisma.CoverLetterFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.CoverLetterFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CoverLetterPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.CoverLetterFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CoverLetterPayload>
-        }
-        findFirst: {
-          args: Prisma.CoverLetterFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CoverLetterPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.CoverLetterFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CoverLetterPayload>
-        }
-        findMany: {
-          args: Prisma.CoverLetterFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CoverLetterPayload>[]
-        }
-        create: {
-          args: Prisma.CoverLetterCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CoverLetterPayload>
-        }
-        createMany: {
-          args: Prisma.CoverLetterCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.CoverLetterCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CoverLetterPayload>[]
-        }
-        delete: {
-          args: Prisma.CoverLetterDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CoverLetterPayload>
-        }
-        update: {
-          args: Prisma.CoverLetterUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CoverLetterPayload>
-        }
-        deleteMany: {
-          args: Prisma.CoverLetterDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.CoverLetterUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.CoverLetterUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CoverLetterPayload>[]
-        }
-        upsert: {
-          args: Prisma.CoverLetterUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CoverLetterPayload>
-        }
-        aggregate: {
-          args: Prisma.CoverLetterAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateCoverLetter>
-        }
-        groupBy: {
-          args: Prisma.CoverLetterGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CoverLetterGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.CoverLetterCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CoverLetterCountAggregateOutputType> | number
-        }
-      }
-    }
   }
 } & {
   other: {
@@ -1619,9 +1544,8 @@ export const TailoredResumeScalarFieldEnum = {
   baseResumeId: 'baseResumeId',
   content: 'content',
   evidenceIds: 'evidenceIds',
-  validationStatus: 'validationStatus',
-  validationResult: 'validationResult',
-  validatedAt: 'validatedAt',
+  status: 'status',
+  warnings: 'warnings',
   renderStatus: 'renderStatus',
   renderedAt: 'renderedAt',
   pdfPath: 'pdfPath',
@@ -1634,20 +1558,6 @@ export const TailoredResumeScalarFieldEnum = {
 } as const
 
 export type TailoredResumeScalarFieldEnum = (typeof TailoredResumeScalarFieldEnum)[keyof typeof TailoredResumeScalarFieldEnum]
-
-
-export const CoverLetterScalarFieldEnum = {
-  id: 'id',
-  jobId: 'jobId',
-  baseResumeId: 'baseResumeId',
-  content: 'content',
-  evidenceIds: 'evidenceIds',
-  rawJson: 'rawJson',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type CoverLetterScalarFieldEnum = (typeof CoverLetterScalarFieldEnum)[keyof typeof CoverLetterScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1922,16 +1832,16 @@ export type ListEnumAnalysisVerdictFieldRefInput<$PrismaModel> = FieldRefInputTy
 
 
 /**
- * Reference to a field of type 'TailorValidationStatus'
+ * Reference to a field of type 'TailorStatus'
  */
-export type EnumTailorValidationStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TailorValidationStatus'>
+export type EnumTailorStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TailorStatus'>
     
 
 
 /**
- * Reference to a field of type 'TailorValidationStatus[]'
+ * Reference to a field of type 'TailorStatus[]'
  */
-export type ListEnumTailorValidationStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TailorValidationStatus[]'>
+export type ListEnumTailorStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TailorStatus[]'>
     
 
 
@@ -2084,7 +1994,6 @@ export type GlobalOmitConfig = {
   applicationDecision?: Prisma.ApplicationDecisionOmit
   jobAnalysis?: Prisma.JobAnalysisOmit
   tailoredResume?: Prisma.TailoredResumeOmit
-  coverLetter?: Prisma.CoverLetterOmit
 }
 
 /* Types for Logging */

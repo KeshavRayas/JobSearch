@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { getTailoredResume } from "@/lib/tailor/service";
 
 // ─── Job panel state ─────────────────────────────────────────────────────────
 // One request for everything the detail panel needs. Replaces separate
-// analyze, tailor, decision, and cover fetches and their Neon round trips.
+// analyze, tailor, and decision fetches and their round trips.
 
 export const dynamic = "force-dynamic";
 
@@ -11,20 +12,13 @@ type Params = Promise<{ id: string }>;
 export async function GET(_req: Request, ctx: { params: Params }) {
   const { id } = await ctx.params;
 
-  const job = await prisma.job.findUnique({
-    where: { id },
-    include: {
-      analysis: true,
-      decision: true,
-      coverLetter: true,
-      tailoredResumes: {
-        where: { isCurrent: true },
-        orderBy: { version: "desc" },
-        take: 1,
-      },
-      _count: { select: { tailoredResumes: true } },
-    },
-  });
+  const [job, tailored] = await Promise.all([
+    prisma.job.findUnique({
+      where: { id },
+      include: { analysis: true, decision: true },
+    }),
+    getTailoredResume(id),
+  ]);
 
   if (!job) {
     return Response.json({ error: "Not found" }, { status: 404 });
@@ -33,10 +27,9 @@ export async function GET(_req: Request, ctx: { params: Params }) {
   return Response.json(
     {
       analysis: job.analysis,
-      tailored: job.tailoredResumes[0] ?? null,
-      versionCount: job._count.tailoredResumes,
+      tailored,
+      versionCount: tailored?.versionCount ?? 0,
       decision: job.decision,
-      cover: job.coverLetter,
     },
     { headers: { "Cache-Control": "no-store" } },
   );
