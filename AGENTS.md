@@ -98,6 +98,7 @@ All routes are unauthenticated and local-only.
 | GET      | `/api/jobs`                  | search/filter (`q`, `location`, `workMode`, `skills`, `page`) |
 | GET      | `/api/jobs/:id`              | one job                                                       |
 | GET      | `/api/jobs/:id/state`        | all panel artifacts in one request                            |
+| POST     | `/api/llm/models`            | validate key + list provider models                           |
 | GET/POST | `/api/jobs/:id/analyze`      | cached / run analysis                                         |
 | GET/POST | `/api/jobs/:id/tailor`       | cached / run tailoring                                        |
 | GET/POST | `/api/jobs/:id/validate`     | cached / semantic validation                                  |

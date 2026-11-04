@@ -55,6 +55,9 @@ Verified through OpenCode Go's **Responses API**, not chat completions:
   `storage/pdfs/o1gMoCevGRZR5d0EMyXUE_v2.pdf` → cover → interview, 255s
 - the Settings preset now stores `api: "responses"`; the BYOK test route
   returned 200 with `source: user` for this exact configuration.
+- model discovery: `POST /api/llm/models` returned **28 models** for OpenCode
+  Go, including `muse-spark-1.3-contributor`. Settings shows the count; the job
+  modal lists the actual models (no manual model id).
 
 The previous verification job (`VOJ3381CG_ApHYoXMMFUX`) was removed by the
 nightly stale-job cleanup, which correctly cascaded its tailored resume, PDF

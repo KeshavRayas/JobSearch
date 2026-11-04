@@ -107,11 +107,10 @@ verdict sit side by side.
   OpenCode Go's Muse Spark models require `LLM_API_MODE=responses` and the
   `https://opencode.ai/inference/go/openai/v1` base URL.
 - The app supports multiple browser-local provider connections, managed only in
-  **Settings → AI providers**. Add an OpenCode Go (or other) key once, test it,
-  then pick the active model inside the job panel. Keys never go to the server
-  and are never logged.
-- The job panel no longer contains a key form; it only selects among saved
-  connections or "Server default".
+  **Settings → AI providers**. Add an OpenCode Go (or other) key once; saving
+  discovers the provider’s model list. Then pick one of those models in the job
+  panel. Keys never go to the server and are never logged.
+- The job panel no longer contains a key form or a free-text model field.
 
 ## Scheduling
 
