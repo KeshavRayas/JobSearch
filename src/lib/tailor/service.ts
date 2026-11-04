@@ -140,7 +140,7 @@ export async function tailorResume(
     makeError: (detail) => new TailorValidationError(detail),
   });
 
-  return persistValidated(jobId, base.id, data, evidenceById, validRaw);
+  return persistValidated(jobId, base.id, data, evidenceById, validRaw, content);
 }
 
 async function persistValidated(
@@ -149,6 +149,7 @@ async function persistValidated(
   data: TailoredResumeData,
   evidenceById: Map<string, string>,
   raw: unknown,
+  baseContent: ResumeData,
 ): Promise<{ tailored: TailoredResumeData & { id: string }; cached: false }> {
   // Canonical boundary: validate + persist the canonical shape so the
   // renderer never sees model field-name variants. Raw output kept for audit.
@@ -156,6 +157,9 @@ async function persistValidated(
   const problems = validateTailoredResume(
     { sections: canonical.sections } as TailoredResumeData,
     evidenceById,
+    // Skills lists are validated by set equality (reordering is legitimate),
+    // which requires the base resume to resolve the cited skills item.
+    baseContent,
   );
   if (problems.length > 0) {
     console.error(
