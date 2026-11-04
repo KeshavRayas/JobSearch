@@ -3,8 +3,7 @@ import { z } from "zod";
 // ─── Tailored resume contract (Phase 2.2) ────────────────────────────────────
 // The model operates on STRUCTURED resume content (never PDF/.tex) and every
 // tailored item cites its evidence: base-resume item IDs it was derived from.
-// Deterministic validation (validate.ts) enforces the provenance rule; LLM
-// semantic validation arrives in Phase 2.3.
+// Deterministic checks produce draft warnings; the user approves the draft.
 
 export const changeTypeSchema = z.enum([
   "UNCHANGED",
@@ -90,6 +89,11 @@ export function buildTailorPrompt(input: TailorPromptInput): string {
     "sourceIds must include EVERY evidence item you took a fact from — not just the first one. If the summary mentions a skill that lives in a skills evidence item, cite that skills item too.",
     "Skills lists may be reordered by relevance but must keep exactly the same skills — never add or drop one.",
     "Copy every skill string EXACTLY as written in the evidence, including prefixes and odd spacing. Do not split, merge, clean, or reword skills.",
+    "Return COMPLETE items. Include every field you have evidence for, not just the rewritten prose.",
+    "experience fields: title, company, location, startDate, endDate, current (boolean), bulletPoints (string[]).",
+    "education fields: degree, field, school, location, startDate, endDate, gpa.",
+    "projects fields: name, technologies (string[]), bulletPoints (string[]).",
+    "skills fields: category, skills (string[]). summary fields: content.",
     "If an item mentions a technology or skill, cite the evidence item that contains it. Do not mention skills that are absent from that item's own evidence.",
     "Return ONLY this JSON shape and nothing else:",
     '{"sections": [{"id": string, "type": string, "title": string, "items": [{"id": string, "kind": "summary"|"experience"|"education"|"skills"|"projects"|"certifications"|"custom", "fields": object, "provenance": {"sourceIds": string[], "change": "UNCHANGED"|"REWRITE"|"REORDER"|"COMBINE"}}]}]}',

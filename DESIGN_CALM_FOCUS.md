@@ -1,5 +1,11 @@
 # Calm Focus Design System — LOCKED (ui-calm-focus)
 
+> **2026-11-05 update:** the application review moved out of the job modal into a
+> full-screen workspace at `/apply/[id]` (queue + fit + resume document). That
+> workspace is the deliberate exception to the `max-w-2xl` modal rule; the job
+> modal itself stays compact (`max-w-3xl`, no resume or analysis). Keep the same
+> paper, hairlines, serif display, and calm motion.
+
 > **Future agents: this file wins.** Chosen by user via Lavish review on 2026-09-04
 > (Concept C — Calm Focus, Slow & buttery 900ms). Inspired by awwwards.com/jobs.
 > Do NOT reintroduce Neo-Brutalism (thick black borders, hard offset shadows,

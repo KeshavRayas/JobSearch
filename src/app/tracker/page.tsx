@@ -61,7 +61,7 @@ export default async function TrackerPage() {
                   {col.jobs.map((job) => (
                     <Link
                       key={job.id}
-                      href={`/?selected=${job.id}`}
+                      href={`/apply/${job.id}`}
                       className="calm-card block p-4"
                     >
                       <div className="text-[11px] uppercase tracking-[0.12em] text-black/45">

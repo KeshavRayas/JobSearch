@@ -25,7 +25,7 @@ test("tracker renders hero and a seeded board card", async ({
   await expect(
     page.getByRole("heading", { name: "Where things stand." }),
   ).toBeVisible();
-  await expect(page.locator(`a[href*="selected=${id}"]`).first()).toBeVisible();
+  await expect(page.locator(`a[href*="/apply/${id}"]`).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Discover" })).toBeVisible();
 });
 

@@ -5,6 +5,7 @@ import {
   tailorResume,
   saveTailoredDraft,
   approveTailoredResume,
+  revertTailoredResume,
 } from "@/lib/tailor/service";
 import { renderPdf } from "@/lib/pdf/service";
 import { checkUrl } from "@/lib/liveness";
@@ -400,6 +401,27 @@ describe("editable draft + approval", () => {
       where: { id: approved.id },
     });
     expect(row?.renderStatus).toBe("PENDING");
+  });
+
+  it("reverts to a new base-resume draft without losing versions", async () => {
+    const c = await makeCompany();
+    const j = await makeJob(c.id);
+    await makeAnalysis(j.id);
+
+    await tailorResume(j.id, stubTailored(validTailoredFixture()));
+    const reverted = await revertTailoredResume(j.id);
+    expect(reverted.status).toBe("DRAFT");
+    expect(reverted.version).toBe(2);
+    expect(reverted.baseResumeId).toBeTruthy();
+
+    const rows = await prisma.tailoredResume.findMany({
+      where: { jobId: j.id },
+      orderBy: { version: "asc" },
+    });
+    expect(rows.map((r) => r.version)).toEqual([1, 2]);
+    expect(rows.filter((r) => r.isCurrent)).toHaveLength(1);
+    expect(rows.find((r) => r.isCurrent)?.id).toBe(reverted.id);
+    expect(JSON.stringify(rows[1].content)).toContain("Test engineer with Go.");
   });
 });
 

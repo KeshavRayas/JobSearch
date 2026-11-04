@@ -1,6 +1,6 @@
 # Verified local state
 
-Recorded 2026-11-04 on branch `finish/local-first`.
+Recorded 2026-11-05 on branch `feat/resume-document-flow`.
 
 This is the evidence that the local product works end to end. Re-run the
 commands; do not trust this file over current output.
@@ -16,43 +16,44 @@ commands; do not trust this file over current output.
 
 ## Scope
 
-Discover/rank jobs, analyze, tailor an **editable draft**, approve it, render an
-ATS-checked PDF, then open the company apply page and mark the application as
-submitted. Cover letters and interview prep are out of scope (cover letters
-removed 2026-11-04).
+Discover/rank jobs, queue an application, analyze fit, tailor a resume, review
+the green/red change map, edit the document, approve it, render an ATS-checked
+PDF, then open the company apply page and mark the application as submitted.
+Cover letters and interview prep are out of scope (cover letters removed
+2026-11-04).
 
 ## Gates
 
-| Gate        | Command                           | Result                     |
-| ----------- | --------------------------------- | -------------------------- |
-| Lint        | `bun run lint`                    | pass, 0 warnings           |
-| Types       | `tsc --noEmit`                    | pass                       |
-| Format      | `prettier --check .`              | pass                       |
-| Unit        | `bun run test`                    | 198 passed / 15 files      |
-| Integration | `bun run test:integration`        | 10 passed / 1 file         |
-| E2E         | `bun run test:e2e`                | 17 passed                  |
-| Build       | `bun run build`                   | pass, all routes           |
-| Muse Spark  | live tailor + PDF (Responses API) | full loop, ~2.2 min tailor |
-| Draft gate  | `POST /api/jobs/:id/pdf` on DRAFT | 422, explicit message      |
-| Audit       | `bun run audit`                   | 45/45 visible              |
+| Gate        | Command                            | Result                     |
+| ----------- | ---------------------------------- | -------------------------- |
+| Lint        | `bun run lint`                     | pass, 0 warnings           |
+| Types       | `tsc --noEmit`                     | pass                       |
+| Format      | `prettier --check` (changed files) | pass                       |
+| Unit        | `bun run test`                     | 206 passed / 17 files      |
+| Integration | `bun run test:integration`         | 11 passed / 1 file         |
+| E2E         | `bun run test:e2e`                 | 17 passed                  |
+| Build       | `bun run build`                    | pass, all routes           |
+| Muse Spark  | live tailor + PDF (Responses API)  | full loop, ~2.2 min tailor |
+| Draft gate  | `POST /api/jobs/:id/pdf` on DRAFT  | 422, explicit message      |
+| Audit       | `bun run audit`                    | 45/45 visible              |
 
-## Live flow (job `iDyCTPl2oe1TkOYCy0L3E`, 2026-11-04)
+## Live flow (job `iDyCTPl2oe1TkOYCy0L3E`, 2026-11-05)
 
 ```text
-tailor    → HTTP 201, status DRAFT, 5 sections, 0 warnings
-edit      → PUT /tailor with one changed summary field → 200, DRAFT
-approve   → POST /approve → 200, status APPROVED
+queue     → card Apply → ApplicationDecision QUEUED → /apply/[id]
+workspace → queue + fit + resume on one screen
+changes   → green rewritten summary/bullets, red base text
+edit      → click summary, save draft → PUT /tailor 200, DRAFT
+approve   → POST /approve 200, status APPROVED
+revert    → POST /revert 201, new DRAFT from base (version n+1)
 pdf       → HTTP 201, renderStatus SUCCESS, atsStatus CHECKED
             storage/pdfs/iDyCTPl2oe1TkOYCy0L3E_v1.pdf
-            keyword coverage 17.65%
-reopen    → PUT /tailor → status DRAFT again
-pdf gate  → 422 {"error":"refusing to render: status is DRAFT, approve the
-            resume draft first"}
-re-approve→ 200
+pdf gate  → 422 on a DRAFT
+mark      → Open application records OPENED; I've applied records APPLIED
 ```
 
-The edited text survived save and approval byte-for-byte. The PDF was rendered
-only after approval.
+Diff rendering is deterministic and UI-only. The PDF contains no green/red
+review annotations.
 
 ## Muse Spark 1.3 Contributor (2026-11-04)
 
@@ -63,7 +64,7 @@ Verified through OpenCode Go's **Responses API**, not chat completions:
 - required headers: bearer key + `x-opencode-session`
 - tailor call usage: prompt 2,343 tokens, completion 11,431 tokens
 - provider returned **28 discoverable models**; `muse-spark-1.3-contributor`
-  appears in Settings and the job modal lists the actual model names.
+  appears in Settings and the application workspace lists the actual model names.
 
 ## Retired validation path
 
@@ -82,6 +83,7 @@ bun run agent -- jobs list --limit 5
 bun run agent -- analyze <jobId>
 bun run agent -- tailor <jobId>
 bun run agent -- approve <jobId>
+bun run agent -- revert <jobId>
 bun run agent -- pdf <jobId>
 bun run agent -- decision <jobId> --status APPLIED
 ```

@@ -14,25 +14,33 @@ evidence. `collectEvidence()` flattens items; per-bullet IDs come from the
 ## Flow
 
 ```text
-Select job (needs JobAnalysis, else 422) → [Tailor Resume]
+Queue a job (Apply) → /apply/[id] full-screen workspace
+  → job fit, required skills, AI verdict, and model selector in the left pane
+  → [Analyze & Tailor Resume] (one click; analysis runs first when missing)
   → POST /api/jobs/:id/tailor
   → tailorResume(): base resume + job + analysis → configured provider
   → Zod shape check (+ one repair retry) → canonicalize
-  → provenance checks become warnings, never a hard failure
+  → enrich factual fields from the base resume (company, dates, school,
+    project names/technologies, skills) → provenance warnings, never a hard stop
   → persist TailoredResume version as DRAFT (v1, v2, …; one current)
 
-Edit any field → [Save draft]
+Changes mode → green additions/rewrites, red removed base text
+  → [Edit] click any text in the document → [Save draft]
   → PUT /api/jobs/:id/tailor { sections }
-  → schema-validated, canonicalized, status back to DRAFT
+  → schema-validated, enriched, status back to DRAFT
   → PDF/ATS state cleared because the content changed
+
+[Revert to base] → POST /api/jobs/:id/revert
+  → creates a new DRAFT from the base resume; previous versions stay in history
 
 [Approve resume]
   → persist current edits → POST /api/jobs/:id/approve
   → status APPROVED
 
-[Render PDF]
-  → POST /api/jobs/:id/pdf (422 unless APPROVED)
-  → render → extract → ATS checks; failures never touch content
+[Open application] (unlocked only after approval)
+  → records OPENED and opens the company page; no autofill
+[I've applied]
+  → records APPLIED explicitly
 ```
 
 `GET /api/jobs/:id/tailor` returns the saved current draft (`cached: true`).
@@ -59,6 +67,34 @@ cleared when the user saves edits.
 
 Skills are facts, not prose: `copySkillsFromBase` overwrites tailored skill lists
 with the cited base item’s exact strings. The model never edits skills.
+
+## Change map (review only)
+
+`src/lib/tailor/diff.ts` compares base fields to the current tailored fields:
+
+- summary: word-level LCS against the non-contact base summary
+- experience/projects: logical bullets reconstructed from PDF-extracted lines,
+  then matched to tailored bullets by token overlap; projects scope the base
+  bullets to the ones cited by that project
+- green = added or significantly rewritten; red = removed base text
+- minor tense/article edits stay plain to keep the review readable
+- `Changes / Edit / Final` modes; green/red never reach the PDF
+
+The diff is deterministic and model-free. Editing switches the document to the
+plain editable surface; Final hides the red “before” lines.
+
+## Resume document (editable)
+
+The draft is rendered as the document the user will send, not as a form:
+centered name/contact header from the profile, uppercase section rules, serif
+body, hanging bullets, categorized skills. `ResumeDocument` makes each visible
+field a click-to-edit `contenteditable` element; the generic item fields remain
+the save/PDF source of truth.
+
+`enrichTailoredData` fills facts the model often omits: company, dates, school
+location, GPA, project names/technologies, and the exact skills list. Project
+titles are recovered from the cited base-resume bullets, so no project names are
+hardcoded.
 
 ## PDF + ATS checks (no model calls)
 
@@ -88,8 +124,8 @@ universal score.
 ## Versioning and failure semantics
 
 1. **Versioning**: `(jobId, version)` identity + `isCurrent`, exactly one current
-   per job (transaction: demote then create). Re-tailor never overwrites. PDF
-   paths carry the version.
+   per job (transaction: demote then create). Re-tailor and revert never
+   overwrite. PDF paths carry the version.
 2. **Failure preservation** (DB-backed tests): analyze/tailor persist only after
    schema validation; PDF failure marks FAILED without touching content;
    re-tailor failure keeps the old version byte-identical.

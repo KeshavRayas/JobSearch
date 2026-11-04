@@ -66,6 +66,7 @@ export type JobSearchResult = {
   postedAt: Date | null;
   daysOld: number;
   skills: string[];
+  decisionStatus: "SAVED" | "QUEUED" | "OPENED" | "APPLIED" | "SKIPPED" | null;
   company: {
     id: string;
     name: string;
