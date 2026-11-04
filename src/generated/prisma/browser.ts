@@ -82,8 +82,3 @@ export type TailoredResume = Prisma.TailoredResumeModel
  * 
  */
 export type CoverLetter = Prisma.CoverLetterModel
-/**
- * Model InterviewPrep
- * 
- */
-export type InterviewPrep = Prisma.InterviewPrepModel

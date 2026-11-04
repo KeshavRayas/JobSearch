@@ -126,9 +126,7 @@ export function ProviderSettings() {
         models,
       };
       const connections = draft.id
-        ? store!.connections.map((c) =>
-            c.id === draft.id ? connection : c,
-          )
+        ? store!.connections.map((c) => (c.id === draft.id ? connection : c))
         : [...store!.connections, connection];
       const wasActive = store!.activeId === connection.id || !store!.activeId;
       const currentModel = store!.activeModel;
@@ -152,9 +150,7 @@ export function ProviderSettings() {
   function remove(id: string) {
     const connections = store!.connections.filter((c) => c.id !== id);
     const nextActive =
-      store!.activeId === id
-        ? (connections[0]?.id ?? null)
-        : store!.activeId;
+      store!.activeId === id ? (connections[0]?.id ?? null) : store!.activeId;
     apply({
       connections,
       activeId: nextActive,
@@ -217,7 +213,8 @@ export function ProviderSettings() {
                   {connection.label}
                 </span>
                 <span className="text-[12px] text-black/45 truncate block">
-                  {connection.models?.length ?? 0} models · {maskKey(connection.key)}
+                  {connection.models?.length ?? 0} models ·{" "}
+                  {maskKey(connection.key)}
                 </span>
               </span>
             </label>
@@ -297,9 +294,7 @@ export function ProviderSettings() {
                 id="provider-label"
                 className={`${inputClass} mt-2`}
                 value={draft.label}
-                onChange={(e) =>
-                  setDraft({ ...draft, label: e.target.value })
-                }
+                onChange={(e) => setDraft({ ...draft, label: e.target.value })}
               />
             </div>
           </div>
@@ -312,9 +307,7 @@ export function ProviderSettings() {
               id="provider-base-url"
               className={`${inputClass} mt-2`}
               value={draft.baseUrl}
-              onChange={(e) =>
-                setDraft({ ...draft, baseUrl: e.target.value })
-              }
+              onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })}
               placeholder="https://…/v1"
             />
           </div>

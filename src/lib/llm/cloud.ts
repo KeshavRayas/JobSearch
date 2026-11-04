@@ -3,7 +3,7 @@ import { LlmError, type LlmProvider } from "@/lib/llm/types";
 // ─── Hosted model provider (Phase 4A) ────────────────────────────────────────
 // Implements the same LlmProvider contract as the OpenCode CLI passthrough,
 // but calls any OpenAI-compatible chat-completions endpoint over HTTPS — so
-// Analyze/tailor/cover/interview work wherever Node runs (including Vercel).
+// Analyze/tailor/cover work wherever Node runs (including Vercel).
 //
 // Selection lives in getDefaultProvider (analysis/service.ts):
 //   LLM_PROVIDER=cloud → this. Anything else → opencode CLI (local default).
@@ -20,7 +20,7 @@ import { LlmError, type LlmProvider } from "@/lib/llm/types";
 // services keep waste at zero regardless of provider.
 
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
-const DEFAULT_TIMEOUT_MS = 120_000;
+const DEFAULT_TIMEOUT_MS = 300_000;
 
 export type CloudProviderOptions = {
   apiKey?: string;
@@ -192,6 +192,12 @@ export class CloudJsonProvider implements LlmProvider {
       }
     } catch (err) {
       if (err instanceof LlmError) throw err;
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new LlmError(
+          this.name,
+          `model request timed out after ${Math.round(timeoutMs() / 1000)}s. Raise LLM_TIMEOUT_MS for long tailoring calls.`,
+        );
+      }
       throw new LlmError(
         this.name,
         `model request failed: ${err instanceof Error ? err.message : String(err)}`,

@@ -34,7 +34,7 @@ under local `bun run dev`, never on Vercel. Everything else is unaffected.
 
 `LLM_PROVIDER=cloud` selects `CloudJsonProvider` (`src/lib/llm/cloud.ts`):
 any OpenAI-compatible `/chat/completions` endpoint over HTTPS, so all five
-flows (analyze, tailor, validate, cover, interview) work on Vercel through
+flows (analyze, tailor, validate, cover) work on Vercel through
 the same `getDefaultProvider()` factory — no route or service changes.
 Requires `LLM_API_KEY` + `LLM_MODEL` (pinned by the operator, never
 defaulted); optional `LLM_BASE_URL`, `LLM_TIMEOUT_MS`. Every call logs

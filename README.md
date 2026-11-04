@@ -1,13 +1,9 @@
 # Job Search
 
-A local-first job search operating system. It ingests postings from seven
-sources, ranks them for one person, and drives the whole application loop:
-analyze a role, tailor a resume with evidence provenance, render an
-ATS-checked PDF, write a cover letter, prep for the interview, and track the
-outcome.
-
-No accounts, no multi-tenancy, no cloud dependency beyond Postgres. It is
-designed to run on your machine, against your Neon database, with your resume.
+A local-first end-to-end job application platform. It ingests postings from
+seven sources, ranks them, tailors a resume with evidence, renders an
+ATS-checked PDF, writes a cover letter, and sends you to the company's apply
+page. No accounts, no multi-tenancy.
 
 ## Stack
 
@@ -68,7 +64,6 @@ bun run agent -- tailor <jobId>
 bun run agent -- validate <jobId>
 bun run agent -- pdf <jobId>
 bun run agent -- cover <jobId>
-bun run agent -- interview <jobId>
 bun run agent -- decision <jobId> --status APPLIED
 bun run agent -- ingest
 bun run agent -- nightly
@@ -82,7 +77,7 @@ The full contract, recipes, and failure playbook are in
 ## Daily loop
 
 ```text
-Discover → open a job → Analyze → Tailor → Check evidence → PDF → Cover letter → Interview prep → Tracker
+Discover → open a job → Analyze → Tailor → Check evidence → PDF → Cover letter → Open application → Tracker
 ```
 
 Every LLM step is opt-in, validates its JSON with Zod, persists only validated
@@ -140,7 +135,7 @@ not deployed.
 | `bun run setup`            | Env check + migrations + seed (idempotent)    |
 | `bun run audit`            | JSON install health (visibility, base resume) |
 | `bun run smoke:llm`        | One provider call; verifies auth + JSON       |
-| `bun run smoke:flow`       | Full analyze→interview flow on one job        |
+| `bun run smoke:flow`       | Full analyze→cover flow on one job            |
 | `bun run agent -- <cmd>`   | Agent CLI (see `AGENTS.md`)                   |
 | `bun run db:migrate`       | Apply Prisma migrations                       |
 | `bun run db:status`        | Migration status                              |
@@ -162,7 +157,6 @@ src/lib/matching/        deterministic scoring + nightly digest
 src/lib/analysis/        job analysis service
 src/lib/tailor/          tailoring, provenance, semantic validation
 src/lib/cover/           cover letters
-src/lib/interview/       interview prep
 src/lib/pdf/             Typst/LaTeX render + ATS checks
 src/lib/llm/             provider abstraction, BYOK, retries
 src/lib/repositories/    all Prisma reads for pages
@@ -174,7 +168,7 @@ e2e/                     Playwright specs
 
 ## Tests
 
-- `bun run test` — 18 files, pure unit tests, no DB, ~5s.
+- `bun run test` — 17 files, pure unit tests, no DB, ~5s.
 - `bun run test:integration` — DB-backed service tests; writes and deletes its
   own rows. Uses longer timeouts because Neon is remote.
 - `bun run test:e2e` — Playwright against a dev server and the same database.

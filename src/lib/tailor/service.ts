@@ -8,6 +8,7 @@ import {
 import { collectEvidencePair } from "@/lib/tailor/evidence";
 import { validateTailoredResume } from "@/lib/tailor/validate";
 import { canonicalizeTailored } from "@/lib/tailor/canonical";
+import type { CanonicalResume } from "@/lib/tailor/canonical";
 import type { ResumeData } from "@/lib/resume.types";
 import { hasResumeContent } from "@/lib/resume.utils";
 import { getDefaultProvider, setDefaultProvider } from "@/lib/analysis/service";
@@ -150,6 +151,48 @@ export async function tailorResume(
   );
 }
 
+/**
+ * Skills are facts, not prose. The model may reorder bullets and rewrite the
+ * summary, but the skills field is copied verbatim from the cited base item.
+ * This also repairs PDF-extracted skill blobs that models tend to "clean".
+ */
+function copySkillsFromBase(
+  canonical: CanonicalResume,
+  base: ResumeData,
+): void {
+  const byId = new Map<string, { category: string; skills: string[] }>();
+  for (const section of base.sections ?? []) {
+    if (section.type !== "skills") continue;
+    for (const item of section.items ?? []) {
+      const record = item as unknown as {
+        id?: string;
+        category?: string;
+        skills?: unknown;
+      };
+      if (!record.id || !Array.isArray(record.skills)) continue;
+      byId.set(record.id, {
+        category: record.category ?? "Skills",
+        skills: record.skills.filter((s): s is string => typeof s === "string"),
+      });
+    }
+  }
+  if (byId.size === 0) return;
+
+  for (const section of canonical.sections) {
+    for (const item of section.items) {
+      if (item.kind !== "skills") continue;
+      const sourceId = item.provenance.sourceIds.find((id) => byId.has(id));
+      const source = sourceId ? byId.get(sourceId) : undefined;
+      if (!source) continue;
+      item.fields = {
+        ...item.fields,
+        category: source.category,
+        skills: source.skills,
+      };
+    }
+  }
+}
+
 async function persistValidated(
   jobId: string,
   baseResumeId: string,
@@ -161,6 +204,7 @@ async function persistValidated(
   // Canonical boundary: validate + persist the canonical shape so the
   // renderer never sees model field-name variants. Raw output kept for audit.
   const canonical = canonicalizeTailored(data);
+  copySkillsFromBase(canonical, baseContent);
   const problems = validateTailoredResume(
     { sections: canonical.sections } as TailoredResumeData,
     evidenceById,

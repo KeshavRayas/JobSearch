@@ -32,7 +32,6 @@ export default async function OpsPage() {
     analyses,
     tailored,
     covers,
-    preps,
     decisions,
     syncs,
     runs,
@@ -45,7 +44,6 @@ export default async function OpsPage() {
     prisma.jobAnalysis.count(),
     prisma.tailoredResume.count(),
     prisma.coverLetter.count(),
-    prisma.interviewPrep.count(),
     prisma.applicationDecision.count(),
     prisma.sourceSync.findMany({
       orderBy: { startedAt: "desc" },
@@ -169,12 +167,11 @@ export default async function OpsPage() {
           <p className="mt-1 text-[13px] text-black/55">
             {companies} companies · {resumes} resumes
           </p>
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               ["Analyses", analyses],
               ["Tailored", tailored],
               ["Cover letters", covers],
-              ["Interview prep", preps],
               ["Decisions", decisions],
             ].map(([label, value]) => (
               <div key={String(label)}>

@@ -14,14 +14,14 @@ export const changeTypeSchema = z.enum([
 ]);
 
 export const provenanceSchema = z.object({
-  sourceIds: z.array(z.string().min(1)).min(1).max(10),
+  sourceIds: z.array(z.string().min(1)).min(1).max(30),
   change: changeTypeSchema,
 });
 
 const fieldValueSchema = z.union([
   z.string().max(5000),
   z.boolean(),
-  z.array(z.string().max(2000)).max(50),
+  z.array(z.string().max(2000)).max(100),
 ]);
 
 export const tailoredItemSchema = z.object({
@@ -89,6 +89,7 @@ export function buildTailorPrompt(input: TailorPromptInput): string {
     "Every tailored item needs provenance: sourceIds (evidence IDs used) and change (UNCHANGED | REWRITE | REORDER | COMBINE).",
     "sourceIds must include EVERY evidence item you took a fact from — not just the first one. If the summary mentions a skill that lives in a skills evidence item, cite that skills item too.",
     "Skills lists may be reordered by relevance but must keep exactly the same skills — never add or drop one.",
+    "Copy every skill string EXACTLY as written in the evidence, including prefixes and odd spacing. Do not split, merge, clean, or reword skills.",
     "If an item mentions a technology or skill, cite the evidence item that contains it. Do not mention skills that are absent from that item's own evidence.",
     "Return ONLY this JSON shape and nothing else:",
     '{"sections": [{"id": string, "type": string, "title": string, "items": [{"id": string, "kind": "summary"|"experience"|"education"|"skills"|"projects"|"certifications"|"custom", "fields": object, "provenance": {"sourceIds": string[], "change": "UNCHANGED"|"REWRITE"|"REORDER"|"COMBINE"}}]}]}',

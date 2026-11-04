@@ -6,16 +6,12 @@ import { getTailoredResume, tailorResume } from "@/lib/tailor/service";
 import { getValidation, validateTailored } from "@/lib/tailor/validateSemantic";
 import { getPdfState, renderPdf } from "@/lib/pdf/service";
 import { generateCoverLetter, getCoverLetter } from "@/lib/cover/service";
-import {
-  generateInterviewPrep,
-  getInterviewPrep,
-} from "@/lib/interview/service";
 
 // ─── Full-flow smoke test ────────────────────────────────────────────────────
 // bun run smoke:flow [jobId] [--refresh]
-// Runs analyze -> tailor -> validate -> PDF -> cover -> interview on a real
-// job and prints one JSON summary. Spends model calls; stops at the first
-// failed gate. Without a jobId, picks the newest visible job.
+// Runs analyze -> tailor -> validate -> PDF -> cover on a real job and prints
+// one JSON summary. Spends model calls; stops at the first failed gate.
+// Without a jobId, picks the newest visible job.
 
 let currentStep = "start";
 let selectedJobId: string | undefined;
@@ -91,13 +87,6 @@ async function main() {
       ? await getCoverLetter(jobId)
       : (await generateCoverLetter(jobId)).cover;
   steps.push({ step: "cover", ok: true, detail: cover });
-
-  currentStep = "interview";
-  const prep =
-    !refresh && (await getInterviewPrep(jobId))
-      ? await getInterviewPrep(jobId)
-      : (await generateInterviewPrep(jobId)).prep;
-  steps.push({ step: "interview", ok: true, detail: prep });
 
   console.log(
     JSON.stringify(

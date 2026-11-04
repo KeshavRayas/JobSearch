@@ -33,7 +33,7 @@ Browser
 Next.js Server Component / Route Handler
   │
   ├── src/lib/repositories/*      ← all page queries
-  ├── src/lib/{analysis,tailor,cover,interview}/service.ts
+  ├── src/lib/{analysis,tailor,cover}/service.ts
   ├── src/lib/matching/nightly.ts
   └── src/lib/ingestion/pipeline.ts
   │
@@ -102,7 +102,6 @@ Job → Tailor         → TailoredResume (STRUCTURAL_VALID) → evidence checks
     → Validate       → SEMANTIC_VALID / SEMANTIC_INVALID
     → PDF            → storage/pdfs + ATS result (SEMANTIC_VALID only)
     → Cover letter   → CoverLetter
-    → Interview prep → InterviewPrep
 ```
 
 Provider selection lives in `getDefaultProvider()`:
