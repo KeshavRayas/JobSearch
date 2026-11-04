@@ -91,25 +91,25 @@ bun run agent -- smoke
 
 All routes are unauthenticated and local-only.
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| GET | `/api/jobs` | search/filter (`q`, `location`, `workMode`, `skills`, `page`) |
-| GET | `/api/jobs/:id` | one job |
-| GET/POST | `/api/jobs/:id/analyze` | cached / run analysis |
-| GET/POST | `/api/jobs/:id/tailor` | cached / run tailoring |
-| GET/POST | `/api/jobs/:id/validate` | cached / semantic validation |
-| GET/POST | `/api/jobs/:id/pdf` | PDF state / render + ATS |
-| GET | `/api/jobs/:id/pdf/download` | download rendered PDF |
-| GET/POST | `/api/jobs/:id/cover` | cover letter |
-| GET/POST | `/api/jobs/:id/interview` | interview prep |
-| GET/POST | `/api/jobs/:id/decision` | tracker state |
-| POST | `/api/jobs/:id/liveness` | apply-URL check |
-| POST | `/api/jobs/import` | import one job by URL |
-| GET | `/api/cron/ingest` | ingestion run |
-| GET | `/api/cron/nightly` | ingest + match + digest |
-| GET/PUT | `/api/profile` | the single profile |
-| GET/POST | `/api/resumes` | resume list/create |
-| GET/POST | `/api/llm/test` | provider check |
+| Method   | Route                        | Purpose                                                       |
+| -------- | ---------------------------- | ------------------------------------------------------------- |
+| GET      | `/api/jobs`                  | search/filter (`q`, `location`, `workMode`, `skills`, `page`) |
+| GET      | `/api/jobs/:id`              | one job                                                       |
+| GET/POST | `/api/jobs/:id/analyze`      | cached / run analysis                                         |
+| GET/POST | `/api/jobs/:id/tailor`       | cached / run tailoring                                        |
+| GET/POST | `/api/jobs/:id/validate`     | cached / semantic validation                                  |
+| GET/POST | `/api/jobs/:id/pdf`          | PDF state / render + ATS                                      |
+| GET      | `/api/jobs/:id/pdf/download` | download rendered PDF                                         |
+| GET/POST | `/api/jobs/:id/cover`        | cover letter                                                  |
+| GET/POST | `/api/jobs/:id/interview`    | interview prep                                                |
+| GET/POST | `/api/jobs/:id/decision`     | tracker state                                                 |
+| POST     | `/api/jobs/:id/liveness`     | apply-URL check                                               |
+| POST     | `/api/jobs/import`           | import one job by URL                                         |
+| GET      | `/api/cron/ingest`           | ingestion run                                                 |
+| GET      | `/api/cron/nightly`          | ingest + match + digest                                       |
+| GET/PUT  | `/api/profile`               | the single profile                                            |
+| GET/POST | `/api/resumes`               | resume list/create                                            |
+| GET/POST | `/api/llm/test`              | provider check                                                |
 
 `POST` flows accept `?refresh=1`. Prerequisite failures are `422`; provider or
 validation failures are `502`; missing rows are `404`.
@@ -191,7 +191,8 @@ at an expired credential; pinning `OPENCODE_MODEL` is intentional.
 - Target: one user on one machine. No auth, no multi-tenancy.
 - PDFs are written under `storage/` on local disk (gitignored).
 - Background work is route-shaped (`/api/cron/*`); schedule ingestion/nightly
-  with Task Scheduler (Windows) or a cron entry. There is no `vercel.json`.
+  with `scripts/schedule-nightly.ps1` (Windows) or a cron entry. There is no
+  `vercel.json`.
 - Do not deploy as-is: routes are open, PDF storage is ephemeral, and the
   OpenCode CLI is local-only.
 

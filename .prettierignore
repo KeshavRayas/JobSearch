@@ -6,6 +6,8 @@ public/pdf.worker.min.mjs
 src/generated/
 *.tsbuildinfo
 next-env.d.ts
+*.ps1
+prisma/migrations/**/*.sql
 # vendored / cached artifacts, not source
 .agents/
 .lavish/

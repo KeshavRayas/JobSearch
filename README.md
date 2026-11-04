@@ -33,13 +33,15 @@ designed to run on your machine, against your Neon database, with your resume.
 bun install
 cp .env.example .env          # PowerShell: Copy-Item .env.example .env
 # edit .env: at minimum DATABASE_URL
-bun run check:env             # validates and explains what is configured
-bun run db:migrate            # apply all migrations
-bun run seed                  # curated company list (Greenhouse/Lever/Ashby/Workday boards)
+bun run setup                 # env check + migrations + curated companies
 bun run dev
 ```
 
-Open http://localhost:3000.
+`bun run setup` is idempotent. It prints exactly what is still missing
+(profile, base resume, provider).
+
+Open http://localhost:3000. Operations live at `/ops`; the machine-readable
+health check is `/api/health`.
 
 ### First-run checklist
 
@@ -53,6 +55,29 @@ Open http://localhost:3000.
 
 Ingestion works without Adzuna/Jooble keys: those two adapters are skipped and
 the five keyless sources still run.
+
+## Agent CLI
+
+Every product action has one machine-readable entry point:
+
+```bash
+bun run agent -- status
+bun run agent -- jobs list --limit 10
+bun run agent -- analyze <jobId>
+bun run agent -- tailor <jobId>
+bun run agent -- validate <jobId>
+bun run agent -- pdf <jobId>
+bun run agent -- cover <jobId>
+bun run agent -- interview <jobId>
+bun run agent -- decision <jobId> --status APPLIED
+bun run agent -- ingest
+bun run agent -- nightly
+```
+
+Each command prints one JSON object (`{ ok, command, data }`) and exits `0`
+on success with stable failure codes. Add `--refresh` to bypass cached rows.
+The full contract, recipes, and failure playbook are in
+[`AGENTS.md`](./AGENTS.md).
 
 ## Daily loop
 
@@ -71,8 +96,12 @@ verdict sit side by side.
 | OpenCode CLI | shells out to `opencode run --format json` | local only     |
 | Cloud (BYOK) | any OpenAI-compatible `/chat/completions`  | anywhere       |
 
-- Local default: whatever model OpenCode is configured with. Override the
-  binary with `OPENCODE_BIN` or the agent with `OPENCODE_AGENT`.
+- Local default: whatever model OpenCode is configured with. Pin it explicitly
+  with `OPENCODE_MODEL` (this machine uses `google/gemini-3.5-flash`); override
+  the binary with `OPENCODE_BIN` or the agent with `OPENCODE_AGENT`.
+- If the pinned provider returns `401 api_key_expired`, run
+  `opencode auth login` or switch `OPENCODE_MODEL`; `bun run smoke:llm` proves
+  the path in one call.
 - `LLM_PROVIDER=cloud` needs `LLM_API_KEY` + `LLM_MODEL`; optional
   `LLM_BASE_URL`, `LLM_TIMEOUT_MS`.
 - The app also supports per-browser BYOK keys in the job panel; those never
@@ -83,13 +112,15 @@ verdict sit side by side.
 The routes are cron-shaped, not cron-configured. Locally, trigger them yourself:
 
 ```bash
-bun run ingest                                  # ingestion pipeline
-curl http://localhost:3000/api/cron/nightly     # ingest + match + digest
+bun run agent -- ingest     # ingestion pipeline
+bun run agent -- nightly    # ingest + match + digest
 ```
 
 If `CRON_SECRET` is set, send `Authorization: Bearer $CRON_SECRET`. On Windows,
-point Task Scheduler at `bun run ingest` (or a `curl` to the nightly route) for
-a daily run. There is no `vercel.json`; this project is not deployed.
+run `powershell -File scripts/schedule-nightly.ps1` to register a daily 02:00
+task (or point Task Scheduler at `bun run agent -- nightly`). `/ops` shows the
+last ingestion and nightly results. There is no `vercel.json`; this project is
+not deployed.
 
 ## Scripts
 
@@ -101,6 +132,10 @@ a daily run. There is no `vercel.json`; this project is not deployed.
 | `bun run typecheck`        | `tsc --noEmit`                                |
 | `bun run check`            | lint + typecheck + Prettier check             |
 | `bun run check:env`        | Validate `.env`, mask secrets, show providers |
+| `bun run setup`            | Env check + migrations + seed (idempotent)    |
+| `bun run audit`            | JSON install health (visibility, base resume) |
+| `bun run smoke:llm`        | One provider call; verifies auth + JSON       |
+| `bun run agent -- <cmd>`   | Agent CLI (see `AGENTS.md`)                   |
 | `bun run db:migrate`       | Apply Prisma migrations                       |
 | `bun run db:status`        | Migration status                              |
 | `bun run seed`             | Seed curated companies                        |
@@ -113,7 +148,7 @@ a daily run. There is no `vercel.json`; this project is not deployed.
 ## Layout
 
 ```text
-src/app/                 routes (discover, job detail, tracker, resumes, settings, api)
+src/app/                 routes (discover, job detail, tracker, resumes, settings, ops, api)
 src/components/          UI (Calm Focus design)
 src/lib/sources/         one adapter per job board
 src/lib/ingestion/       normalize → validate → dedupe → upsert
@@ -125,6 +160,7 @@ src/lib/interview/       interview prep
 src/lib/pdf/             Typst/LaTeX render + ATS checks
 src/lib/llm/             provider abstraction, BYOK, retries
 src/lib/repositories/    all Prisma reads for pages
+scripts/                 setup, audit, ingest, agent CLI, smoke checks
 prisma/                  schema + migrations
 docs/                    architecture, schema, per-phase contracts
 e2e/                     Playwright specs

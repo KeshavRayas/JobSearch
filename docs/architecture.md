@@ -140,6 +140,18 @@ and bypass the shared provider for that browser.
 - Missing env: `requireEnv` fails fast with a fixable message; `check:env`
   reports the full configuration.
 
+## Operations
+
+- `GET /api/health` — DB, visible jobs, profile, base resume, provider, last
+  ingestion/nightly (503 when the DB is unreachable).
+- `/ops` — human view of the same, plus recent `SourceSync` and `NightlyRun`.
+- `bun run setup` — env check + migrations + company seed, idempotent.
+- `bun run audit` — JSON install health; exits non-zero when jobs are invisible
+  or the base resume is missing.
+- `bun run smoke:llm` — one provider call.
+- Windows: `scripts/schedule-nightly.ps1` registers `bun run agent -- nightly`
+  at 02:00.
+
 ## Scale notes
 
 Optimized for one user: 10k–50k jobs, a few hundred matches per run, page

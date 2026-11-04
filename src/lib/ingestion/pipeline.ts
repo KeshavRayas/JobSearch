@@ -358,14 +358,19 @@ export async function runIngestionPipeline(): Promise<void> {
     }),
   );
 
-  // Cleanup old logs and stale jobs in parallel
+  // Cleanup old logs and stale jobs in parallel. Staleness uses the same
+  // effective date as visibility: many sources omit postedAt entirely.
+  const staleBefore = new Date(
+    Date.now() - STALE_DAYS_THRESHOLD * 24 * 60 * 60 * 1000,
+  );
   await Promise.all([
     cleanupOldLogs(),
     prisma.job.deleteMany({
       where: {
-        postedAt: {
-          lt: new Date(Date.now() - STALE_DAYS_THRESHOLD * 24 * 60 * 60 * 1000),
-        },
+        OR: [
+          { postedAt: { lt: staleBefore } },
+          { postedAt: null, scrapedAt: { lt: staleBefore } },
+        ],
       },
     }),
   ]);

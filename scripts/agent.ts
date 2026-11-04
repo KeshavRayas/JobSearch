@@ -63,7 +63,9 @@ class UsageError extends Error {
 }
 
 function print(commandName: string, data: unknown) {
-  console.log(JSON.stringify({ ok: true, command: commandName, data }, null, 2));
+  console.log(
+    JSON.stringify({ ok: true, command: commandName, data }, null, 2),
+  );
 }
 
 function fail(commandName: string, err: unknown) {
@@ -162,7 +164,8 @@ async function main() {
       const jobId = idArg();
       if (!refresh()) {
         const existing = await getAnalysis(jobId);
-        if (existing) return print(command, { cached: true, analysis: existing });
+        if (existing)
+          return print(command, { cached: true, analysis: existing });
       }
       const { analysis } = await analyzeJob(jobId);
       return print(command, { cached: false, analysis });
@@ -172,7 +175,8 @@ async function main() {
       const jobId = idArg();
       if (!refresh()) {
         const existing = await getTailoredResume(jobId);
-        if (existing) return print(command, { cached: true, tailored: existing });
+        if (existing)
+          return print(command, { cached: true, tailored: existing });
       }
       const { tailored } = await tailorResume(jobId);
       return print(command, { cached: false, tailored });
@@ -261,10 +265,7 @@ async function main() {
       );
 
     case "nightly":
-      return print(
-        command,
-        await runNightly(Number(flag("top") ?? 25)),
-      );
+      return print(command, await runNightly(Number(flag("top") ?? 25)));
 
     case "profile":
       return print(

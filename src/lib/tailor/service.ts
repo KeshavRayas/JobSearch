@@ -140,7 +140,14 @@ export async function tailorResume(
     makeError: (detail) => new TailorValidationError(detail),
   });
 
-  return persistValidated(jobId, base.id, data, evidenceById, validRaw, content);
+  return persistValidated(
+    jobId,
+    base.id,
+    data,
+    evidenceById,
+    validRaw,
+    content,
+  );
 }
 
 async function persistValidated(

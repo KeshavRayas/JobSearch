@@ -20,7 +20,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:status": "prisma migrate status",
     "seed": "tsx scripts/seed-companies.ts",
-    "ingest": "tsx src/lib/ingestion/pipeline.ts",
+    "ingest": "tsx scripts/ingest.ts",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
